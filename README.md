@@ -4,12 +4,13 @@ Loja virtual de moda masculina com Django, MySQL e Nginx.
 
 ## Tecnologias
 
-- **Backend:** Django 5 + Gunicorn
-- **Banco:** MySQL 8.0
-- **Frontend:** HTML5 + CSS3 (design responsivo)
-- **Servidor:** Nginx
-- **Proxy/TLS:** Traefik + Let's Encrypt (produção)
-- **Infra:** Docker + Docker Compose
+- **Backend:** Python 3.12, Django 5, Gunicorn
+- **Database:** MySQL 8.0
+- **Frontend:** HTML5, CSS3, Django Templates, Font Awesome, Google Fonts (Bebas Neue, Inter)
+- **Web Server:** Nginx
+- **Reverse Proxy / TLS:** Traefik + Let's Encrypt (produção)
+- **Infrastructure:** Docker, Docker Compose
+- **ORM:** Django ORM com migrations
 
 ## Estrutura
 
