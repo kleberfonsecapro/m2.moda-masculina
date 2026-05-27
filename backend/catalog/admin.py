@@ -1,5 +1,34 @@
 from django.contrib import admin
-from .models import Category, Product
+from django import forms
+from .models import Category, Product, CarouselSlide, CarouselSettings
+
+
+class CarouselSettingsForm(forms.ModelForm):
+    class Meta:
+        model = CarouselSettings
+        fields = '__all__'
+
+
+@admin.register(CarouselSlide)
+class CarouselSlideAdmin(admin.ModelAdmin):
+    list_display = ['order', 'title', 'label', 'active']
+    list_editable = ['active']
+    list_filter = ['active']
+    ordering = ['order']
+    search_fields = ['title', 'label', 'description']
+
+
+@admin.register(CarouselSettings)
+class CarouselSettingsAdmin(admin.ModelAdmin):
+    form = CarouselSettingsForm
+
+    def has_add_permission(self, request):
+        if CarouselSettings.objects.exists():
+            return False
+        return True
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Category)

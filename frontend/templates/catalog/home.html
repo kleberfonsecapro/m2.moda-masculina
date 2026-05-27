@@ -6,63 +6,27 @@
 {% block content %}
 <section class="hero">
     <div class="hero-carousel">
-        <div class="hero-slide active" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('https://images.unsplash.com/photo-1577223625816-7546f13df25d?w=1600');">
+        {% for slide in slides %}
+        <div class="hero-slide{% if forloop.first %} active{% endif %}" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('{{ slide.image_url }}?w=1600');">
             <div class="container">
                 <div class="hero-content">
-                    <span class="hero-label">Camisas de Time</span>
-                    <h1>Seleção <span class="text-accent">Brasil</span></h1>
-                    <p>Camisa retrô Brasil 1994 e outros clubes. Vista sua paixão com estilo.</p>
-                    <a href="{% url 'catalog:product_list_by_category' 'camisas-time' %}" class="btn btn-primary">Ver Camisas</a>
+                    {% if slide.label %}
+                    <span class="hero-label">{{ slide.label }}</span>
+                    {% endif %}
+                    <h1>{{ slide.title }} {% if slide.title_highlight %}<span class="text-accent">{{ slide.title_highlight }}</span>{% endif %}</h1>
+                    {% if slide.description %}
+                    <p>{{ slide.description }}</p>
+                    {% endif %}
+                    <a href="{{ slide.link_url|default:'/' }}" class="btn btn-primary">{{ slide.link_text }}</a>
                 </div>
             </div>
         </div>
-        <div class="hero-slide" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=1600');">
-            <div class="container">
-                <div class="hero-content">
-                    <span class="hero-label">Camisas Peruanas</span>
-                    <h1>Bordados <span class="text-accent">Exclusivos</span></h1>
-                    <p>Camisas peruanas artesanais com bordados típicos. Peça única e cheia de personalidade.</p>
-                    <a href="{% url 'catalog:product_list_by_category' 'camisas-peruanas' %}" class="btn btn-primary">Ver Coleção</a>
-                </div>
-            </div>
-        </div>
-        <div class="hero-slide" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('https://images.unsplash.com/photo-1549298916-b41d501d3772?w=1600');">
-            <div class="container">
-                <div class="hero-content">
-                    <span class="hero-label">Calçados</span>
-                    <h1>Sneakers & <span class="text-accent">Tênis</span></h1>
-                    <p>Tênis casuais e cano alto para completar o visual urbano.</p>
-                    <a href="{% url 'catalog:product_list_by_category' 'calcados' %}" class="btn btn-primary">Ver Calçados</a>
-                </div>
-            </div>
-        </div>
-        <div class="hero-slide" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=1600');">
-            <div class="container">
-                <div class="hero-content">
-                    <span class="hero-label">Acessórios</span>
-                    <h1>Bonés & <span class="text-accent">Correntes</span></h1>
-                    <p>Complete o visual com nossos acessórios streetwear. Bonés, correntes e muito mais.</p>
-                    <a href="{% url 'catalog:product_list_by_category' 'acessorios' %}" class="btn btn-primary">Ver Acessórios</a>
-                </div>
-            </div>
-        </div>
-        <div class="hero-slide" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=1600');">
-            <div class="container">
-                <div class="hero-content">
-                    <span class="hero-label">Camisetas Oversized</span>
-                    <h1>Básicos <span class="text-accent">Premium</span></h1>
-                    <p>Camisetas oversized em algodão de alta gramatura. A base do guarda-roupa.</p>
-                    <a href="{% url 'catalog:product_list_by_category' 'camisetas-oversized' %}" class="btn btn-primary">Ver Camisetas</a>
-                </div>
-            </div>
-        </div>
+        {% endfor %}
     </div>
     <div class="hero-controls">
-        <button class="hero-dot active" data-slide="0"></button>
-        <button class="hero-dot" data-slide="1"></button>
-        <button class="hero-dot" data-slide="2"></button>
-        <button class="hero-dot" data-slide="3"></button>
-        <button class="hero-dot" data-slide="4"></button>
+        {% for slide in slides %}
+        <button class="hero-dot{% if forloop.first %} active{% endif %}" data-slide="{{ forloop.counter0 }}"></button>
+        {% endfor %}
     </div>
 </section>
 
@@ -215,8 +179,9 @@
         });
     });
 
+    var autoplayInterval = {{ carousel_settings.autoplay_interval|default:5000 }};
     setInterval(() => {
         showSlide((currentSlide + 1) % slides.length);
-    }, 5000);
+    }, autoplayInterval);
 </script>
 {% endblock %}

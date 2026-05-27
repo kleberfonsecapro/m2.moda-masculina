@@ -37,13 +37,15 @@ services:
       retries: 30
 
   web:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: m2-django
     restart: unless-stopped
     network_mode: host
     volumes:
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
+      - static_volume:/app/backend/staticfiles
+      - media_volume:/app/backend/media
     env_file:
       - .env
     environment:

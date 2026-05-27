@@ -11,7 +11,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'm2shop.settings')
 django.setup()
 
-from catalog.models import Category, Product
+from catalog.models import Category, Product, CarouselSlide, CarouselSettings
 from django.contrib.auth.models import User
 from django.db import transaction
 
@@ -286,6 +286,71 @@ def seed():
                 print(f"    Imagem baixada para '{product.name}'")
         else:
             print(f"  Produto '{product.name}' já existe")
+
+    # Carrossel - Slides
+    slides_data = [
+        {
+            'label': 'Camisas de Time',
+            'title': 'Camisas de Time',
+            'title_highlight': 'Retrô & Modernas',
+            'description': 'Brasil 94, França, Flamengo e muito mais. Vista suas cores com estilo.',
+            'image_url': 'https://images.unsplash.com/photo-1577223625816-7546f13df25d?w=1200',
+            'link_url': '/catalog/camisas-time/',
+            'link_text': 'Ver Coleção',
+            'order': 0,
+            'active': True,
+        },
+        {
+            'label': 'Camisas Peruanas',
+            'title': 'Camisas Peruanas',
+            'title_highlight': 'Bordados Únicos',
+            'description': 'Artesanais, coloridas e cheias de personalidade. Peças exclusivas para quem ama estilo autêntico.',
+            'image_url': 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=1200',
+            'link_url': '/catalog/camisas-peruanas/',
+            'link_text': 'Ver Coleção',
+            'order': 1,
+            'active': True,
+        },
+        {
+            'label': 'Lançamento',
+            'title': 'Oversized',
+            'title_highlight': 'Conforto Extremo',
+            'description': 'Camisetas oversized em algodão premium. A base do streetwear.',
+            'image_url': 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=1200',
+            'link_url': '/catalog/camisetas-oversized/',
+            'link_text': 'Explorar',
+            'order': 2,
+            'active': True,
+        },
+        {
+            'label': 'Promoção',
+            'title': 'Frete Grátis',
+            'title_highlight': 'Acima de R$ 199',
+            'description': 'Aproveite frete grátis para todo o Brasil em pedidos acima de R$ 199.',
+            'image_url': 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1200',
+            'link_url': '/catalog/',
+            'link_text': 'Comprar Agora',
+            'order': 3,
+            'active': True,
+        },
+    ]
+
+    for slide_data in slides_data:
+        slide, created = CarouselSlide.objects.get_or_create(
+            order=slide_data['order'],
+            defaults=slide_data
+        )
+        if created:
+            print(f"  Slide '{slide.title}' criado")
+        else:
+            print(f"  Slide '{slide.title}' já existe")
+
+    # Garantir que existe configuração do carrossel
+    if not CarouselSettings.objects.exists():
+        CarouselSettings.objects.create()
+        print("  Configurações do Carrossel criadas")
+    else:
+        print("  Configurações do Carrossel já existem")
 
     print("\nBanco populado com sucesso!")
     print("\nCredenciais de acesso:")
