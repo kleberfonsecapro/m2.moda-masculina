@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Pedido #{{ order.id }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <h1>Pedido #{{ order.id }}</h1>
+    </div>
+</section>
+
+<section class="section order-detail-section">
+    <div class="container">
+        <div class="order-box">
+            <div class="order-status-bar">
+                <div class="order-status status-{{ order.status }}">
+                    <span class="status-badge">{{ order.get_status_display }}</span>
+                </div>
+            </div>
+            <div class="order-info-grid">
+                <div class="order-info-block">
+                    <h3>Data</h3>
+                    <p>{{ order.created_at|date:"d/m/Y H:i" }}</p>
+                </div>
+                <div class="order-info-block">
+                    <h3>Endereço</h3>
+                    <p>{{ order.address }}, {{ order.city }} - {{ order.state }}, {{ order.zip_code }}</p>
+                </div>
+            </div>
+            <div class="order-items-list">
+                <h3>Itens do Pedido</h3>
+                {% for item in order.items.all %}
+                <div class="order-item">
+                    <span class="order-item-name">{{ item.product.name }} x{{ item.quantity }}</span>
+                    <span class="order-item-price">R$ {{ item.total|floatformat:2 }}</span>
+                </div>
+                {% endfor %}
+                <div class="order-total">
+                    <span>Total</span>
+                    <span>R$ {{ order.total|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

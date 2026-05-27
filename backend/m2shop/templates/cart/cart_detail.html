@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Carrinho{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <h1>Meu Carrinho</h1>
+        <p>Revise seus itens antes de finalizar a compra.</p>
+    </div>
+</section>
+
+<section class="section cart-section">
+    <div class="container">
+        {% if cart and cart.items.exists %}
+        <div class="cart-layout">
+            <div class="cart-items">
+                {% for item in cart.items.all %}
+                <div class="cart-item">
+                    <div class="cart-item-image">
+                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+                    </div>
+                    <div class="cart-item-info">
+                        <h3><a href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a></h3>
+                        <span class="cart-item-category">{{ item.product.category.name }}</span>
+                        <div class="cart-item-price">
+                            R$ {{ item.product.effective_price|floatformat:2 }}
+                        </div>
+                    </div>
+                    <form action="{% url 'cart:cart_update' item.id %}" method="post" class="cart-item-qty">
+                        {% csrf_token %}
+                        <div class="qty-control">
+                            <button type="button" class="qty-minus" onclick="this.parentNode.querySelector('input').stepDown(); this.parentNode.querySelector('input').dispatchEvent(new Event('change'));">-</button>
+                            <input type="number" name="quantity" value="{{ item.quantity }}" min="0" max="99" class="qty-input" onchange="this.form.submit()">
+                            <button type="button" class="qty-plus" onclick="this.parentNode.querySelector('input').stepUp(); this.parentNode.querySelector('input').dispatchEvent(new Event('change'));">+</button>
+                        </div>
+                    </form>
+                    <div class="cart-item-total">
+                        R$ {{ item.total|floatformat:2 }}
+                    </div>
+                    <a href="{% url 'cart:cart_remove' item.id %}" class="cart-item-remove">
+                        <i class="fas fa-trash"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="cart-summary">
+                <h3>Resumo do Pedido</h3>
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span>R$ {{ cart.total|floatformat:2 }}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Frete</span>
+                    <span>Grátis</span>
+                </div>
+                <div class="summary-row summary-total">
+                    <span>Total</span>
+                    <span>R$ {{ cart.total|floatformat:2 }}</span>
+                </div>
+                <a href="{% url 'orders:order_create' %}" class="btn btn-primary btn-block">
+                    Finalizar Compra
+                </a>
+                <a href="{% url 'catalog:product_list' %}" class="btn btn-outline btn-block">
+                    Continuar Comprando
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-shopping-bag"></i>
+            <h3>Seu carrinho está vazio</h3>
+            <p>Adicione produtos ao carrinho para continuar.</p>
+            <a href="{% url 'catalog:product_list' %}" class="btn btn-primary">Ver Produtos</a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

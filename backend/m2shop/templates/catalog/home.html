@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Início{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-carousel">
+        <div class="hero-slide active" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('https://images.unsplash.com/photo-1577223625816-7546f13df25d?w=1600');">
+            <div class="container">
+                <div class="hero-content">
+                    <span class="hero-label">Camisas de Time</span>
+                    <h1>Seleção <span class="text-accent">Brasil</span></h1>
+                    <p>Camisa retrô Brasil 1994 e outros clubes. Vista sua paixão com estilo.</p>
+                    <a href="{% url 'catalog:product_list_by_category' 'camisas-time' %}" class="btn btn-primary">Ver Camisas</a>
+                </div>
+            </div>
+        </div>
+        <div class="hero-slide" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=1600');">
+            <div class="container">
+                <div class="hero-content">
+                    <span class="hero-label">Camisas Peruanas</span>
+                    <h1>Bordados <span class="text-accent">Exclusivos</span></h1>
+                    <p>Camisas peruanas artesanais com bordados típicos. Peça única e cheia de personalidade.</p>
+                    <a href="{% url 'catalog:product_list_by_category' 'camisas-peruanas' %}" class="btn btn-primary">Ver Coleção</a>
+                </div>
+            </div>
+        </div>
+        <div class="hero-slide" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('https://images.unsplash.com/photo-1549298916-b41d501d3772?w=1600');">
+            <div class="container">
+                <div class="hero-content">
+                    <span class="hero-label">Calçados</span>
+                    <h1>Sneakers & <span class="text-accent">Tênis</span></h1>
+                    <p>Tênis casuais e cano alto para completar o visual urbano.</p>
+                    <a href="{% url 'catalog:product_list_by_category' 'calcados' %}" class="btn btn-primary">Ver Calçados</a>
+                </div>
+            </div>
+        </div>
+        <div class="hero-slide" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=1600');">
+            <div class="container">
+                <div class="hero-content">
+                    <span class="hero-label">Acessórios</span>
+                    <h1>Bonés & <span class="text-accent">Correntes</span></h1>
+                    <p>Complete o visual com nossos acessórios streetwear. Bonés, correntes e muito mais.</p>
+                    <a href="{% url 'catalog:product_list_by_category' 'acessorios' %}" class="btn btn-primary">Ver Acessórios</a>
+                </div>
+            </div>
+        </div>
+        <div class="hero-slide" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=1600');">
+            <div class="container">
+                <div class="hero-content">
+                    <span class="hero-label">Camisetas Oversized</span>
+                    <h1>Básicos <span class="text-accent">Premium</span></h1>
+                    <p>Camisetas oversized em algodão de alta gramatura. A base do guarda-roupa.</p>
+                    <a href="{% url 'catalog:product_list_by_category' 'camisetas-oversized' %}" class="btn btn-primary">Ver Camisetas</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="hero-controls">
+        <button class="hero-dot active" data-slide="0"></button>
+        <button class="hero-dot" data-slide="1"></button>
+        <button class="hero-dot" data-slide="2"></button>
+        <button class="hero-dot" data-slide="3"></button>
+        <button class="hero-dot" data-slide="4"></button>
+    </div>
+</section>
+
+<section class="section categories-section">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-subtitle">Categorias</span>
+            <h2 class="section-title">Explore Nossas <span class="text-accent">Categorias</span></h2>
+        </div>
+        <div class="categories-grid">
+            {% for category in categories %}
+            <a href="{% url 'catalog:product_list_by_category' category.slug %}" class="category-card">
+                <div class="category-icon">
+                    {% if category.slug == 'camisas-peruanas' %}
+                        <i class="fas fa-tshirt"></i>
+                    {% elif category.slug == 'camisetas-oversized' %}
+                        <i class="fas fa-tshirt"></i>
+                    {% elif category.slug == 'camisas-time' %}
+                        <i class="fas fa-futbol"></i>
+                    {% elif category.slug == 'joggers' %}
+                        <i class="fas fa-vest"></i>
+                    {% elif category.slug == 'cargo-pants' %}
+                        <i class="fas fa-vest"></i>
+                    {% elif category.slug == 'jaquetas' %}
+                        <i class="fas fa-vest"></i>
+                    {% elif category.slug == 'calcados' %}
+                        <i class="fas fa-shoe-prints"></i>
+                    {% elif category.slug == 'acessorios' %}
+                        <i class="fas fa-glasses"></i>
+                    {% else %}
+                        <i class="fas fa-tag"></i>
+                    {% endif %}
+                </div>
+                <h3>{{ category.name }}</h3>
+                <p>{{ category.description|truncatewords:8 }}</p>
+            </a>
+            {% empty %}
+            <div class="empty-state">
+                <p>Categorias em breve...</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="section featured-section">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-subtitle">Destaques</span>
+            <h2 class="section-title">Produtos em <span class="text-accent">Destaque</span></h2>
+        </div>
+        <div class="products-grid">
+            {% for product in featured_products %}
+            <div class="product-card">
+                <div class="product-image">
+                    <a href="{{ product.get_absolute_url }}">
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                    </a>
+                    {% if product.promotional_price %}
+                        <span class="product-badge">Oferta</span>
+                    {% endif %}
+                    <div class="product-actions">
+                        <a href="{% url 'cart:cart_add' product.id %}" class="btn-add-cart">
+                            <i class="fas fa-shopping-bag"></i> Adicionar
+                        </a>
+                    </div>
+                </div>
+                <div class="product-info">
+                    <span class="product-category">{{ product.category.name }}</span>
+                    <h3><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
+                    <div class="product-price">
+                        {% if product.promotional_price %}
+                            <span class="price-old">R$ {{ product.price|floatformat:2 }}</span>
+                            <span class="price-current">R$ {{ product.promotional_price|floatformat:2 }}</span>
+                        {% else %}
+                            <span class="price-current">R$ {{ product.price|floatformat:2 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <i class="fas fa-box-open"></i>
+                <p>Nenhum produto em destaque no momento.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="section banner-section">
+    <div class="container">
+        <div class="banner-card">
+            <div class="banner-content">
+                <span class="banner-tag">Camisas de Time</span>
+                <h2>Seleção <span class="text-accent">Brasil</span> & <span class="text-accent">França</span></h2>
+                <p>As melhores camisas de futebol retrô e modernas. Vista sua paixão com estilo.</p>
+                <a href="{% url 'catalog:product_list_by_category' 'camisas-time' %}" class="btn btn-primary">Ver Camisas</a>
+            </div>
+            <div class="banner-image">
+                <img src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=600" alt="Camisas de Time">
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section features-section">
+    <div class="container">
+        <div class="features-grid">
+            <div class="feature-item">
+                <i class="fas fa-truck"></i>
+                <h4>Frete Grátis</h4>
+                <p>Para compras acima de R$ 199</p>
+            </div>
+            <div class="feature-item">
+                <i class="fas fa-shield-alt"></i>
+                <h4>Compra Segura</h4>
+                <p>Dados protegidos com criptografia</p>
+            </div>
+            <div class="feature-item">
+                <i class="fas fa-undo"></i>
+                <h4>Troca Fácil</h4>
+                <p>30 dias para trocar seu produto</p>
+            </div>
+            <div class="feature-item">
+                <i class="fas fa-clock"></i>
+                <h4>Atendimento</h4>
+                <p>Suporte de segunda a sábado</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.hero-slide');
+    const dots = document.querySelectorAll('.hero-dot');
+
+    function showSlide(index) {
+        slides.forEach(s => s.classList.remove('active'));
+        dots.forEach(d => d.classList.remove('active'));
+        slides[index].classList.add('active');
+        dots[index].classList.add('active');
+        currentSlide = index;
+    }
+
+    dots.forEach(dot => {
+        dot.addEventListener('click', () => {
+            showSlide(parseInt(dot.dataset.slide));
+        });
+    });
+
+    setInterval(() => {
+        showSlide((currentSlide + 1) % slides.length);
+    }, 5000);
+</script>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ category.name|default:'Catálogo' }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <h1>{{ category.name|default:'Todos os Produtos' }}</h1>
+        <p>{{ category.description|default:'Confira nossa seleção completa de moda masculina.' }}</p>
+    </div>
+</section>
+
+<section class="section catalog-section">
+    <div class="container">
+        <div class="catalog-layout">
+            <aside class="catalog-sidebar">
+                <h3>Categorias</h3>
+                <ul class="category-filter">
+                    <li>
+                        <a href="{% url 'catalog:product_list' %}" class="{% if not category %}active{% endif %}">
+                            Todos os Produtos
+                        </a>
+                    </li>
+                    {% for cat in categories %}
+                    <li>
+                        <a href="{% url 'catalog:product_list_by_category' cat.slug %}"
+                           class="{% if category and category.slug == cat.slug %}active{% endif %}">
+                            {{ cat.name }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </aside>
+            <div class="catalog-main">
+                <div class="catalog-header">
+                    <p>{{ products|length }} produto(s) encontrado(s)</p>
+                </div>
+                <div class="products-grid">
+                    {% for product in products %}
+                    <div class="product-card">
+                        <div class="product-image">
+                            <a href="{{ product.get_absolute_url }}">
+                                <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                            </a>
+                            {% if product.promotional_price %}
+                                <span class="product-badge">Oferta</span>
+                            {% endif %}
+                            <div class="product-actions">
+                                <a href="{% url 'cart:cart_add' product.id %}" class="btn-add-cart">
+                                    <i class="fas fa-shopping-bag"></i> Adicionar
+                                </a>
+                            </div>
+                        </div>
+                        <div class="product-info">
+                            <span class="product-category">{{ product.category.name }}</span>
+                            <h3><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
+                            <div class="product-price">
+                                {% if product.promotional_price %}
+                                    <span class="price-old">R$ {{ product.price|floatformat:2 }}</span>
+                                    <span class="price-current">R$ {{ product.promotional_price|floatformat:2 }}</span>
+                                {% else %}
+                                    <span class="price-current">R$ {{ product.price|floatformat:2 }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="empty-state full-width">
+                        <i class="fas fa-box-open"></i>
+                        <h3>Nenhum produto encontrado</h3>
+                        <p>Não encontramos produtos nesta categoria.</p>
+                        <a href="{% url 'catalog:product_list' %}" class="btn btn-primary">Ver Todos</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

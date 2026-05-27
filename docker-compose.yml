@@ -1,0 +1,69 @@
+volumes:
+  mysql_data:
+  static_volume:
+  media_volume:
+  letsencrypt:
+
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - letsencrypt:/letsencrypt
+    depends_on:
+      - web
+
+  db:
+    image: mysql:8.0
+    container_name: m2-mysql
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - mysql_data:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-m2shop}
+      MYSQL_USER: ${MYSQL_USER:-m2shop}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-m2shop_pass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_pass}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  web:
+    build: ./backend
+    container_name: m2-django
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    env_file:
+      - .env
+    environment:
+      MYSQL_HOST: 127.0.0.1
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py makemigrations &&
+             python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn m2shop.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+
+  nginx:
+    build: ./nginx
+    container_name: m2-nginx
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - static_volume:/staticfiles:ro
+      - media_volume:/media:ro
+    depends_on:
+      - web

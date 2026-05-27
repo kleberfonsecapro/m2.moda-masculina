@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ product.name }}{% endblock %}
+
+{% block content %}
+<section class="section product-detail-section">
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="{% url 'catalog:home' %}">Início</a> &gt;
+            <a href="{% url 'catalog:product_list_by_category' product.category.slug %}">{{ product.category.name }}</a> &gt;
+            <span>{{ product.name }}</span>
+        </div>
+        <div class="product-detail">
+            <div class="product-detail-image">
+                <img src="{{ product.image.url }}" alt="{{ product.name }}">
+            </div>
+            <div class="product-detail-info">
+                <span class="product-category">{{ product.category.name }}</span>
+                <h1>{{ product.name }}</h1>
+                <div class="product-detail-price">
+                    {% if product.promotional_price %}
+                        <span class="price-old">R$ {{ product.price|floatformat:2 }}</span>
+                        <span class="price-current">R$ {{ product.promotional_price|floatformat:2 }}</span>
+                    {% else %}
+                        <span class="price-current">R$ {{ product.price|floatformat:2 }}</span>
+                    {% endif %}
+                </div>
+                <p class="product-description">{{ product.description }}</p>
+                <div class="product-stock">
+                    {% if product.stock > 0 %}
+                        <span class="in-stock"><i class="fas fa-check-circle"></i> Em estoque</span>
+                    {% else %}
+                        <span class="out-of-stock"><i class="fas fa-times-circle"></i> Fora de estoque</span>
+                    {% endif %}
+                </div>
+                {% if product.stock > 0 %}
+                <a href="{% url 'cart:cart_add' product.id %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-shopping-bag"></i> Adicionar ao Carrinho
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+{% if related_products %}
+<section class="section related-section">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-subtitle">Relacionados</span>
+            <h2 class="section-title">Você Também Pode <span class="text-accent">Gostar</span></h2>
+        </div>
+        <div class="products-grid">
+            {% for product in related_products %}
+            <div class="product-card">
+                <div class="product-image">
+                    <a href="{{ product.get_absolute_url }}">
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                    </a>
+                    <div class="product-actions">
+                        <a href="{% url 'cart:cart_add' product.id %}" class="btn-add-cart">
+                            <i class="fas fa-shopping-bag"></i> Adicionar
+                        </a>
+                    </div>
+                </div>
+                <div class="product-info">
+                    <span class="product-category">{{ product.category.name }}</span>
+                    <h3><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
+                    <div class="product-price">
+                        {% if product.promotional_price %}
+                            <span class="price-old">R$ {{ product.price|floatformat:2 }}</span>
+                            <span class="price-current">R$ {{ product.promotional_price|floatformat:2 }}</span>
+                        {% else %}
+                            <span class="price-current">R$ {{ product.price|floatformat:2 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}
