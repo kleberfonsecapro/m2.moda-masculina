@@ -61,7 +61,9 @@ class CarouselSettingsAdmin(admin.ModelAdmin):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'created_at']
+    list_display = ['name', 'slug', 'featured', 'created_at']
+    list_editable = ['featured']
+    list_filter = ['featured']
     prepopulated_fields = {'slug': ('name',)}
     search_fields = ['name']
 

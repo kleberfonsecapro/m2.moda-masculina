@@ -4,12 +4,14 @@ from .models import Category, Product, CarouselSlide, CarouselSettings
 
 def home(request):
     featured_products = Product.objects.filter(available=True, featured=True)[:8]
-    categories = Category.objects.all()
+    categories = Category.objects.all().order_by('-featured', 'name')
+    featured_categories = Category.objects.filter(featured=True)
     slides = CarouselSlide.objects.filter(active=True).order_by('order')
     carousel_settings = CarouselSettings.objects.first()
     return render(request, 'catalog/home.html', {
         'featured_products': featured_products,
         'categories': categories,
+        'featured_categories': featured_categories,
         'slides': slides,
         'carousel_settings': carousel_settings,
     })

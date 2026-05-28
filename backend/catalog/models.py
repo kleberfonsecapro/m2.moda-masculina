@@ -6,6 +6,7 @@ class Category(models.Model):
     name = models.CharField('Nome', max_length=100)
     slug = models.SlugField(max_length=100, unique=True)
     description = models.TextField('Descrição', blank=True)
+    featured = models.BooleanField('Destaque', default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
