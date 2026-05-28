@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django import forms
 from django.utils.html import format_html
-from .models import Category, Product, CarouselSlide, CarouselSettings
+from .models import Category, Product, FeaturedProduct, CarouselSlide, CarouselSettings
 
 
 class CarouselSettingsForm(forms.ModelForm):
@@ -44,6 +44,16 @@ class CarouselSlideAdmin(admin.ModelAdmin):
             )
         return '-'
     image_preview.short_description = 'Prévia'
+
+
+@admin.register(FeaturedProduct)
+class FeaturedProductAdmin(admin.ModelAdmin):
+    list_display = ['product', 'label', 'order', 'active']
+    list_editable = ['label', 'order', 'active']
+    list_filter = ['active']
+    ordering = ['order']
+    search_fields = ['product__name', 'label']
+    autocomplete_fields = ['product']
 
 
 @admin.register(CarouselSettings)

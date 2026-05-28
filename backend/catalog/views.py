@@ -1,15 +1,16 @@
 from django.shortcuts import render, get_object_or_404
-from .models import Category, Product, CarouselSlide, CarouselSettings
+from .models import Category, Product, FeaturedProduct, CarouselSlide, CarouselSettings
 
 
 def home(request):
-    featured_products = Product.objects.filter(available=True, featured=True)[:8]
+    featured_items = FeaturedProduct.objects.filter(active=True).select_related('product')
+    featured_products = [item.product for item in featured_items if item.product.available]
     categories = Category.objects.all().order_by('-featured', 'name')
     featured_categories = Category.objects.filter(featured=True)
     slides = CarouselSlide.objects.filter(active=True).order_by('order')
     carousel_settings = CarouselSettings.objects.first()
     return render(request, 'catalog/home.html', {
-        'featured_products': featured_products,
+        'featured_items': featured_items,
         'categories': categories,
         'featured_categories': featured_categories,
         'slides': slides,

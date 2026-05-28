@@ -61,6 +61,26 @@ class Product(models.Model):
         return self.promotional_price if self.promotional_price else self.price
 
 
+class FeaturedProduct(models.Model):
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name='featured_items',
+        verbose_name='Produto'
+    )
+    label = models.CharField('Rótulo', max_length=100, blank=True,
+        help_text='Ex: "Lançamento", "Mais Vendido"')
+    order = models.PositiveIntegerField('Ordem', default=0)
+    active = models.BooleanField('Ativo', default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order']
+        verbose_name = 'Produto em Destaque'
+        verbose_name_plural = 'Produtos em Destaque'
+
+    def __str__(self):
+        return f'{self.product.name} (ordem {self.order})'
+
+
 class CarouselSlide(models.Model):
     label = models.CharField('Rótulo', max_length=100, blank=True,
         help_text='Ex: "Nova Coleção", "Ofertas"')

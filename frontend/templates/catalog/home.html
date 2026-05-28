@@ -80,13 +80,16 @@
             <h2 class="section-title">Produtos em <span class="text-accent">Destaque</span></h2>
         </div>
         <div class="products-grid">
-            {% for product in featured_products %}
+            {% for item in featured_items %}
+            {% with product=item.product %}
             <div class="product-card">
                 <div class="product-image">
                     <a href="{{ product.get_absolute_url }}">
                         <img src="{{ product.image.url }}" alt="{{ product.name }}">
                     </a>
-                    {% if product.promotional_price %}
+                    {% if item.label %}
+                        <span class="product-badge">{{ item.label }}</span>
+                    {% elif product.promotional_price %}
                         <span class="product-badge">Oferta</span>
                     {% endif %}
                     <div class="product-actions">
@@ -108,6 +111,7 @@
                     </div>
                 </div>
             </div>
+            {% endwith %}
             {% empty %}
             <div class="empty-state">
                 <i class="fas fa-box-open"></i>
