@@ -68,6 +68,8 @@ class FeaturedProduct(models.Model):
     )
     label = models.CharField('Rótulo', max_length=100, blank=True,
         help_text='Ex: "Lançamento", "Mais Vendido"')
+    image = models.ImageField('Imagem', upload_to='featured/', blank=True,
+        help_text='Deixe vazio para usar a imagem do produto')
     order = models.PositiveIntegerField('Ordem', default=0)
     active = models.BooleanField('Ativo', default=True)
     created_at = models.DateTimeField(auto_now_add=True)

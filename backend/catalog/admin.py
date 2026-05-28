@@ -48,12 +48,39 @@ class CarouselSlideAdmin(admin.ModelAdmin):
 
 @admin.register(FeaturedProduct)
 class FeaturedProductAdmin(admin.ModelAdmin):
-    list_display = ['product', 'label', 'order', 'active']
+    list_display = ['product', 'label', 'order', 'active', 'image_preview']
     list_editable = ['label', 'order', 'active']
     list_filter = ['active']
     ordering = ['order']
     search_fields = ['product__name', 'label']
     autocomplete_fields = ['product']
+
+    fieldsets = [
+        ('Produto', {
+            'fields': ['product', 'label'],
+        }),
+        ('Imagem', {
+            'fields': ['image'],
+            'description': 'Deixe vazio para usar a imagem do produto.',
+        }),
+        ('Configurações', {
+            'fields': ['order', 'active'],
+        }),
+    ]
+
+    def image_preview(self, obj):
+        src = None
+        if obj.image:
+            src = obj.image.url
+        elif obj.product.image:
+            src = obj.product.image.url
+        if src:
+            return format_html(
+                '<img src="{}" style="max-height:50px;border-radius:4px" />',
+                src
+            )
+        return '-'
+    image_preview.short_description = 'Prévia'
 
 
 @admin.register(CarouselSettings)
