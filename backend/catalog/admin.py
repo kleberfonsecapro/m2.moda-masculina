@@ -24,7 +24,7 @@ class CarouselSlideAdmin(admin.ModelAdmin):
             'fields': ['label', 'title', 'title_highlight', 'description'],
         }),
         ('Imagem e Links', {
-            'fields': ['image_url', 'link_url', 'link_text'],
+            'fields': ['image', 'image_url', 'link_url', 'link_text'],
         }),
         ('Configurações', {
             'fields': ['order', 'active'],
@@ -32,10 +32,15 @@ class CarouselSlideAdmin(admin.ModelAdmin):
     ]
 
     def image_preview(self, obj):
-        if obj.image_url:
+        src = None
+        if obj.image:
+            src = obj.image.url
+        elif obj.image_url:
+            src = obj.image_url
+        if src:
             return format_html(
                 '<img src="{}" style="max-height:50px;border-radius:4px" />',
-                obj.image_url
+                src
             )
         return '-'
     image_preview.short_description = 'Prévia'

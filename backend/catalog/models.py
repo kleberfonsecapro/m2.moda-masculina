@@ -68,7 +68,9 @@ class CarouselSlide(models.Model):
     title_highlight = models.CharField('Título em destaque', max_length=200, blank=True,
         help_text='Parte do título com cor de destaque. Ex: "Brasil"')
     description = models.TextField('Descrição', blank=True)
-    image_url = models.URLField('URL da Imagem', max_length=500, blank=True)
+    image = models.ImageField('Imagem', upload_to='carousel/', blank=True)
+    image_url = models.URLField('URL da Imagem', max_length=500, blank=True,
+        help_text='Usado somente se nenhuma imagem for enviada acima')
     link_url = models.CharField('URL do Link', max_length=200, blank=True,
         help_text='Ex: /catalog/camisas-time/ ou deixe vazio para /')
     link_text = models.CharField('Texto do Botão', max_length=100, default='Ver Agora')
