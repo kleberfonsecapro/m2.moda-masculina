@@ -1,0 +1,28 @@
+http:
+  routers:
+    m2:
+      rule: "Host(`m2moda.com.br`) || Host(`www.m2moda.com.br`)"
+      service: m2
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    blendburguer:
+      rule: "Host(`blendburguer.com.br`) || Host(`www.blendburguer.com.br`)"
+      service: blendburguer
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    m2:
+      loadBalancer:
+        servers:
+          - url: "http://m2-nginx:8080"
+
+    blendburguer:
+      loadBalancer:
+        servers:
+          - url: "http://blend-nginx:8080"

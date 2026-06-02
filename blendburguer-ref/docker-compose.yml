@@ -6,17 +6,17 @@ volumes:
 services:
   db:
     image: mysql:8.0
-    container_name: m2-mysql
+    container_name: blend-mysql
     restart: unless-stopped
     networks:
       - web
     volumes:
       - mysql_data:/var/lib/mysql
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-m2shop}
-      MYSQL_USER: ${MYSQL_USER:-m2shop}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-m2shop_pass}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_pass}
+      MYSQL_DATABASE: blendburguer
+      MYSQL_USER: blend
+      MYSQL_PASSWORD: sua_senha_aqui
+      MYSQL_ROOT_PASSWORD: root_senha_aqui
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -27,7 +27,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: m2-django
+    container_name: blend-django
     restart: unless-stopped
     networks:
       - web
@@ -36,21 +36,24 @@ services:
       - media_volume:/app/backend/media
     env_file:
       - .env
+    environment:
+      MYSQL_HOST: db
     depends_on:
       db:
         condition: service_healthy
     command: >
-      sh -c "python manage.py migrate --fake-initial &&
+      sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn m2shop.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+             gunicorn blendburguer.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
 
   nginx:
-    build: ./nginx
-    container_name: m2-nginx
+    image: nginx:1.26-alpine
+    container_name: blend-nginx
     restart: unless-stopped
     networks:
       - web
     volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - static_volume:/staticfiles:ro
       - media_volume:/media:ro
     depends_on:
