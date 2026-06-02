@@ -35,8 +35,8 @@
                     {% endif %}
                 </div>
                 {% if product.stock > 0 %}
-                <a href="{% url 'cart:cart_add' product.id %}" class="btn btn-primary btn-lg">
-                    <i class="fas fa-shopping-bag"></i> Adicionar ao Carrinho
+                <a href="https://wa.me/{{ whatsapp_number }}?text=Ol%C3%A1,%20tenho%20interesse%20no%20produto%20{{ product.name|urlencode }}%20-%20R$%20{{ product.effective_price|floatformat:2|urlencode }}" target="_blank" class="btn btn-primary btn-lg" style="background:#25D366;border-color:#25D366">
+                    <i class="fab fa-whatsapp"></i> Comprar via WhatsApp
                 </a>
                 {% endif %}
             </div>
@@ -59,8 +59,8 @@
                         <img src="{{ product.image.url }}" alt="{{ product.name }}">
                     </a>
                     <div class="product-actions">
-                        <a href="{% url 'cart:cart_add' product.id %}" class="btn-add-cart">
-                            <i class="fas fa-shopping-bag"></i> Adicionar
+                        <a href="https://wa.me/{{ whatsapp_number }}?text=Ol%C3%A1,%20tenho%20interesse%20no%20produto%20{{ product.name|urlencode }}%20-%20R$%20{{ product.effective_price|floatformat:2|urlencode }}" target="_blank" class="btn-add-cart" style="background:#25D366">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
                         </a>
                     </div>
                 </div>

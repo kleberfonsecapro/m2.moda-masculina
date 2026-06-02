@@ -93,8 +93,8 @@
                         <span class="product-badge">Oferta</span>
                     {% endif %}
                     <div class="product-actions">
-                        <a href="{% url 'cart:cart_add' product.id %}" class="btn-add-cart">
-                            <i class="fas fa-shopping-bag"></i> Adicionar
+                        <a href="https://wa.me/{{ whatsapp_number }}?text=Ol%C3%A1,%20tenho%20interesse%20no%20produto%20{{ product.name|urlencode }}%20-%20R$%20{{ product.effective_price|floatformat:2|urlencode }}" target="_blank" class="btn-add-cart" style="background:#25D366">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
                         </a>
                     </div>
                 </div>
@@ -142,19 +142,9 @@
     <div class="container">
         <div class="features-grid">
             <div class="feature-item">
-                <i class="fas fa-truck"></i>
-                <h4>Frete Grátis</h4>
-                <p>Para compras acima de R$ 199</p>
-            </div>
-            <div class="feature-item">
-                <i class="fas fa-shield-alt"></i>
-                <h4>Compra Segura</h4>
-                <p>Dados protegidos com criptografia</p>
-            </div>
-            <div class="feature-item">
-                <i class="fas fa-undo"></i>
-                <h4>Troca Fácil</h4>
-                <p>30 dias para trocar seu produto</p>
+                <i class="fas fa-tshirt"></i>
+                <h4>Camisa do Brasil</h4>
+                <p>Na compra de R$ 250,00 ganhe uma camisa do Brasil</p>
             </div>
             <div class="feature-item">
                 <i class="fas fa-clock"></i>

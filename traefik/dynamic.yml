@@ -1,2 +1,14 @@
-# Dynamic configuration for Traefik
-# Add custom middleware or other dynamic config here if needed
+http:
+  routers:
+    m2-router:
+      rule: "Host(`localhost`) || Host(`10.62.30.157`)"
+      service: m2-service
+      entryPoints:
+        - websecure
+      tls: {}
+
+  services:
+    m2-service:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8080"

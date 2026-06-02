@@ -11,7 +11,6 @@ services:
     restart: unless-stopped
     network_mode: host
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
       - letsencrypt:/letsencrypt
@@ -54,8 +53,7 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "python manage.py makemigrations &&
-             python manage.py migrate &&
+      sh -c "python manage.py migrate --fake-initial &&
              python manage.py collectstatic --noinput &&
              gunicorn m2shop.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
 

@@ -109,6 +109,50 @@ class CarouselSlide(models.Model):
         return self.title or self.label or f'Slide #{self.order}'
 
 
+class SiteConfig(models.Model):
+    whatsapp_number = models.CharField(
+        'WhatsApp', max_length=20,
+        help_text='Número com DDI e DDD. Ex: 5511999999999'
+    )
+    instagram = models.URLField(
+        'Instagram', max_length=255, blank=True,
+        help_text='URL completa do perfil. Ex: https://instagram.com/m.2modamasculina'
+    )
+    facebook = models.URLField(
+        'Facebook', max_length=255, blank=True,
+        help_text='URL completa da página'
+    )
+    youtube = models.URLField(
+        'YouTube', max_length=255, blank=True,
+        help_text='URL completa do canal'
+    )
+    tiktok = models.URLField(
+        'TikTok', max_length=255, blank=True,
+        help_text='URL completa do perfil'
+    )
+    twitter = models.URLField(
+        'Twitter / X', max_length=255, blank=True,
+        help_text='URL completa do perfil'
+    )
+    email = models.EmailField(
+        'E-mail', max_length=255, blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuração do Site'
+        verbose_name_plural = 'Configurações do Site'
+
+    def __str__(self):
+        return 'Configurações do Site'
+
+    def save(self, *args, **kwargs):
+        if not self.pk and SiteConfig.objects.exists():
+            return
+        super().save(*args, **kwargs)
+
+
 class CarouselSettings(models.Model):
     autoplay_interval = models.PositiveIntegerField(
         'Intervalo automático (ms)', default=5000,

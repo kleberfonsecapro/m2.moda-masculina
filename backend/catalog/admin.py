@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django import forms
 from django.utils.html import format_html
-from .models import Category, Product, FeaturedProduct, CarouselSlide, CarouselSettings
+from .models import Category, Product, FeaturedProduct, CarouselSlide, CarouselSettings, SiteConfig
 
 
 class CarouselSettingsForm(forms.ModelForm):
@@ -89,6 +89,30 @@ class CarouselSettingsAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         if CarouselSettings.objects.exists():
+            return False
+        return True
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SiteConfig)
+class SiteConfigAdmin(admin.ModelAdmin):
+    fieldsets = [
+        ('WhatsApp', {
+            'fields': ['whatsapp_number'],
+        }),
+        ('Redes Sociais', {
+            'fields': ['instagram', 'facebook', 'youtube', 'tiktok', 'twitter'],
+            'description': 'Deixe em branco as redes que não possui.',
+        }),
+        ('Contato', {
+            'fields': ['email'],
+        }),
+    ]
+
+    def has_add_permission(self, request):
+        if SiteConfig.objects.exists():
             return False
         return True
 

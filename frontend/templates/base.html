@@ -35,7 +35,6 @@
                     </form>
                     {% else %}
                     <a href="{% url 'accounts:login' %}"><i class="fas fa-sign-in-alt"></i> Entrar</a>
-                    <a href="{% url 'accounts:register' %}"><i class="fas fa-user-plus"></i> Cadastrar</a>
                     {% endif %}
                 </div>
             </div>
@@ -93,37 +92,34 @@
                     <span class="footer-logo">M2 Moda Masculina</span>
                     <p>Moda masculina com estilo urbano e atitude. Streetwear de verdade.</p>
                     <div class="footer-social">
-                        <a href="https://instagram.com/m.2modamasculina" target="_blank" aria-label="Instagram"><i
-                                class="fab fa-instagram"></i></a>
-                        <a href="#" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-                        <a href="#" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>
+                        {% if instagram %}<a href="{{ instagram }}" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>{% endif %}
+                        {% if facebook %}<a href="{{ facebook }}" target="_blank" aria-label="Facebook"><i class="fab fa-facebook"></i></a>{% endif %}
+                        {% if youtube %}<a href="{{ youtube }}" target="_blank" aria-label="YouTube"><i class="fab fa-youtube"></i></a>{% endif %}
+                        {% if tiktok %}<a href="{{ tiktok }}" target="_blank" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>{% endif %}
+                        {% if twitter %}<a href="{{ twitter }}" target="_blank" aria-label="Twitter"><i class="fab fa-x-twitter"></i></a>{% endif %}
+                        {% if whatsapp_number %}<a href="https://wa.me/{{ whatsapp_number }}" target="_blank" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>{% endif %}
                     </div>
                 </div>
                 <div class="footer-links">
                     <h4>Links Rápidos</h4>
                     <ul>
                         <li><a href="{% url 'catalog:product_list' %}">Catálogo</a></li>
-                        <li><a href="https://instagram.com/m.2modamasculina" target="_blank">Instagram</a></li>
+                        {% if instagram %}<li><a href="{{ instagram }}" target="_blank">Instagram</a></li>{% endif %}
                         <li><a href="#">Sobre Nós</a></li>
                         <li><a href="#">Trocas e Devoluções</a></li>
                     </ul>
                 </div>
                 <div class="footer-links">
-                    <h4>Minha Conta</h4>
+                    <h4>Ajuda</h4>
                     <ul>
-                        {% if user.is_authenticated %}
-                        <li><a href="{% url 'accounts:profile' %}">Meu Perfil</a></li>
-                        <li><a href="{% url 'orders:order_list' %}">Meus Pedidos</a></li>
-                        {% else %}
-                        <li><a href="{% url 'accounts:login' %}">Entrar</a></li>
-                        <li><a href="{% url 'accounts:register' %}">Cadastre-se</a></li>
-                        {% endif %}
+                        <li><a href="#">Trocas e Devoluções</a></li>
+                        <li><a href="#">Sobre Nós</a></li>
                     </ul>
                 </div>
                 <div class="footer-contact">
                     <h4>Contato</h4>
-                    <p><i class="fab fa-instagram"></i> @m.2modamasculina</p>
-                    <p><i class="fas fa-envelope"></i> m2modamasculina@gmail.com</p>
+                    {% if instagram %}<p><i class="fab fa-instagram"></i> {{ instagram }}</p>{% endif %}
+                    {% if email %}<p><i class="fas fa-envelope"></i> {{ email }}</p>{% endif %}
                     <p><i class="fas fa-map-marker-alt"></i> Brasil</p>
                 </div>
             </div>
