@@ -3,6 +3,13 @@
 from django.db import migrations, models
 
 
+def assign_codes(apps, schema_editor):
+    Product = apps.get_model('catalog', 'Product')
+    for product in Product.objects.filter(code=''):
+        product.code = f'M2-FIX-{product.pk:05d}'
+        product.save(update_fields=['code'])
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -13,12 +20,18 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='product',
             name='code',
-            field=models.CharField(blank=True, max_length=20, unique=True, verbose_name='Código'),
+            field=models.CharField(blank=True, max_length=20, verbose_name='Código'),
         ),
         migrations.AddField(
             model_name='product',
             name='qrcode_image',
             field=models.ImageField(blank=True, upload_to='qrcodes/', verbose_name='QR Code'),
+        ),
+        migrations.RunPython(assign_codes, reverse_code=migrations.RunPython.noop),
+        migrations.AlterField(
+            model_name='product',
+            name='code',
+            field=models.CharField(blank=True, max_length=20, unique=True, verbose_name='Código'),
         ),
         migrations.AlterField(
             model_name='siteconfig',
