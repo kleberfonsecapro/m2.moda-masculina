@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Estoque{% endblock %}
+
+{% block extra_css %}
+<style>
+.stock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stock-summary {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.stock-summary-card {
+  background: var(--color-dark-gray);
+  border-radius: var(--radius);
+  padding: 16px 24px;
+  text-align: center;
+  min-width: 160px;
+}
+.stock-summary-card .label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--color-light-gray);
+  margin-bottom: 4px;
+}
+.stock-summary-card .value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-accent-text);
+}
+.stock-summary-card .value.total-value {
+  color: var(--color-success);
+}
+.stock-table-wrap {
+  overflow-x: auto;
+}
+.stock-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.stock-table th {
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--color-dark-gray);
+  color: var(--color-light-gray);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  border-bottom: 2px solid var(--color-gray);
+  white-space: nowrap;
+}
+.stock-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-dark-gray);
+  vertical-align: middle;
+}
+.stock-table tr:hover td {
+  background: var(--color-dark-gray);
+}
+.stock-code {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.stock-name {
+  color: var(--color-white);
+  font-weight: 600;
+}
+.stock-qty {
+  font-weight: 700;
+}
+.stock-qty.low {
+  color: var(--color-warning);
+}
+.stock-qty.out {
+  color: var(--color-error);
+}
+.stock-price {
+  font-weight: 600;
+}
+.stock-total {
+  font-weight: 700;
+  color: var(--color-accent-text);
+}
+.stock-table .grand-total td {
+  border-top: 2px solid var(--color-accent);
+  border-bottom: none;
+  font-weight: 800;
+  font-size: 1rem;
+  padding: 16px;
+  background: var(--color-dark-gray);
+}
+.stock-table .grand-total .stock-total {
+  font-size: 1.1rem;
+  color: var(--color-success);
+}
+@media (max-width: 768px) {
+  .stock-summary-card {
+    min-width: 120px;
+    padding: 12px 16px;
+  }
+  .stock-summary-card .value {
+    font-size: 1.2rem;
+  }
+  .stock-table th,
+  .stock-table td {
+    padding: 8px 10px;
+    font-size: 0.75rem;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div class="container">
+    <div class="stock-header">
+      <div>
+        <h1>Inventário de Estoque</h1>
+        <p>Valor total dos produtos em estoque.</p>
+      </div>
+      <a href="{% url 'catalog:sales_page' %}" class="btn btn-outline">
+        <i class="fas fa-arrow-left"></i> Voltar às Vendas
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="stock-summary">
+      <div class="stock-summary-card">
+        <div class="label">Total Itens</div>
+        <div class="value">{{ total_items }}</div>
+      </div>
+      <div class="stock-summary-card">
+        <div class="label">Valor Total (Custo)</div>
+        <div class="value total-value">R$ {{ total_stock_value|floatformat:2 }}</div>
+      </div>
+    </div>
+
+    <div class="stock-table-wrap" style="margin-top:24px">
+      <table class="stock-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Produto</th>
+            <th>Categoria</th>
+            <th>Qtd</th>
+            <th>Preço Compra</th>
+            <th>Preço Venda</th>
+            <th>Valor Estoque</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in products %}
+          <tr>
+            <td><span class="stock-code">{{ p.code }}</span></td>
+            <td><span class="stock-name">{{ p.name }}</span></td>
+            <td>{{ p.category.name }}</td>
+            <td>
+              <span class="stock-qty {% if p.stock == 0 %}out{% elif p.stock <= 5 %}low{% endif %}">
+                {{ p.stock }}
+              </span>
+            </td>
+            <td><span class="stock-price">R$ {{ p.purchase_price|floatformat:2 }}</span></td>
+            <td>
+              <span class="stock-price">R$ {{ p.effective_price|floatformat:2 }}</span>
+              {% if p.promotional_price %}
+              <br><small style="color:var(--color-accent-text)">Promo: R$ {{ p.promotional_price|floatformat:2 }}</small>
+              {% endif %}
+            </td>
+            <td><span class="stock-total">R$ {{ p.stock_value|floatformat:2 }}</span></td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" style="text-align:center;padding:48px;color:var(--color-light-gray)">
+              Nenhum produto cadastrado.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="grand-total">
+            <td colspan="5"></td>
+            <td>Total Geral</td>
+            <td class="stock-total">R$ {{ total_stock_value|floatformat:2 }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

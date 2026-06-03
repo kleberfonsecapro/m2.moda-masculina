@@ -1,0 +1,141 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M2 Moda Masculina — Acesso do Vendedor</title>
+  <link rel="icon" type="image/jpeg" href="{% static 'images/logo-m2.jpg' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--color-black);
+    }
+    .sales-login {
+      width: 100%;
+      max-width: 400px;
+      padding: 40px 32px;
+      background: var(--color-dark-gray);
+      border-radius: var(--radius-lg);
+      text-align: center;
+    }
+    .sales-login .logo-img {
+      height: 100px;
+      width: 100px;
+      border-radius: 50%;
+      margin: 0 auto 20px;
+    }
+    .sales-login h1 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .sales-login p {
+      color: var(--color-light-gray);
+      font-size: 0.85rem;
+      margin-bottom: 28px;
+    }
+    .sales-login .form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .sales-login .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--color-light-gray);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .sales-login .form-group input {
+      width: 100%;
+      background: var(--color-dark);
+      border: 1px solid var(--color-gray);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      color: var(--color-white);
+      font-family: var(--font-primary);
+      font-size: 0.95rem;
+      transition: var(--transition);
+    }
+    .sales-login .form-group input:focus {
+      outline: none;
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 2px var(--color-accent-glow);
+    }
+    .sales-login .errorlist {
+      list-style: none;
+      color: var(--color-error);
+      font-size: 0.8rem;
+      margin-bottom: 12px;
+    }
+    .sales-login .btn {
+      margin-top: 8px;
+    }
+    .sales-login .back-link {
+      display: block;
+      margin-top: 16px;
+      font-size: 0.8rem;
+      color: var(--color-light-gray);
+    }
+    .sales-login .back-link:hover {
+      color: var(--color-accent-text);
+    }
+  </style>
+</head>
+<body>
+  <div class="sales-login">
+    <img src="{% static 'images/logo-m2.jpg' %}" alt="M2 Moda Masculina" class="logo-img">
+    <h1><i class="fas fa-cash-register"></i> Vendas</h1>
+    <p>Faça login para acessar o painel de vendas</p>
+
+    <form method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <ul class="errorlist">
+          {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if form.username.errors %}
+        <ul class="errorlist">{% for e in form.username.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+      {% endif %}
+      <div class="form-group">
+        <label for="id_username">Usuário</label>
+        <input type="text" name="username" id="id_username" class="form-control" required autofocus>
+      </div>
+      {% if form.password.errors %}
+        <ul class="errorlist">{% for e in form.password.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+      {% endif %}
+      <div class="form-group">
+        <label for="id_password">Senha</label>
+        <input type="password" name="password" id="id_password" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">
+        <i class="fas fa-sign-in-alt"></i> Entrar
+      </button>
+    </form>
+
+    {% if form.errors %}
+    <p style="color:var(--color-error);font-size:0.85rem;margin-top:12px">
+      Usuário ou senha inválidos.
+    </p>
+    {% endif %}
+
+    <a href="{% url 'catalog:home' %}" class="back-link">
+      <i class="fas fa-arrow-left"></i> Voltar ao site
+    </a>
+  </div>
+</body>
+</html>

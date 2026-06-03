@@ -14,6 +14,7 @@ django.setup()
 from catalog.models import Category, Product, CarouselSlide, CarouselSettings
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import Q
 
 
 def download_image(url):
@@ -351,6 +352,16 @@ def seed():
         print("  Configurações do Carrossel criadas")
     else:
         print("  Configurações do Carrossel já existem")
+
+    # Gerar códigos e QR Codes para produtos existentes
+    pending = Product.objects.filter(
+        Q(code__isnull=True) | Q(code='') | Q(qrcode_image='')
+    )
+    count = pending.count()
+    if count:
+        for product in pending:
+            product.save()
+        print(f"  QR Codes e códigos gerados para {count} produto(s)")
 
     print("\nBanco populado com sucesso!")
     print("\nCredenciais de acesso:")

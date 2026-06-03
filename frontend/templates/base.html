@@ -51,6 +51,9 @@
                         {% for cat in categories %}
                         <li><a href="{% url 'catalog:product_list_by_category' cat.slug %}">{{ cat.name }}</a></li>
                         {% endfor %}
+                        {% if user.is_authenticated %}
+                        <li><a href="{% url 'catalog:sales_page' %}"><i class="fas fa-cash-register"></i> Vendas</a></li>
+                        {% endif %}
                     </ul>
                 </nav>
                 <div class="header-actions">

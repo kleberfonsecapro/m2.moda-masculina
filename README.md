@@ -71,6 +71,9 @@ docker compose exec web python scripts/seed.py
 - **Admin:** http://localhost:8080/admin/
   - Usuário: `admin`
   - Senha: `admin123`
+- **Vendas (Balcão):** http://localhost:8080/vendas/
+  - Login exclusivo em `/vendas/entrar/` (mesmo usuário/senha do admin)
+- **Estoque:** http://localhost:8080/vendas/estoque/
 
 ## Comandos Úteis
 
@@ -97,6 +100,33 @@ docker compose exec web python manage.py shell
 docker compose ps
 ```
 
+## Testes
+
+98 testes automatizados (unitários + integração) divididos entre os 4 apps (catalog, cart, orders, accounts).
+
+```bash
+# Rodar todos os testes
+docker compose run --rm --no-deps web python manage.py test
+
+# Rodar testes de um app específico
+docker compose run --rm --no-deps web python manage.py test catalog
+
+# Rodar com verbose
+docker compose run --rm --no-deps web python manage.py test catalog cart orders accounts --verbosity=2
+```
+
+Os testes usam **SQLite em memória** (configurado automaticamente em `settings.py`), sem dependência do MySQL.
+
+### Pre-push Hook
+
+Um git hook local executa os testes automaticamente antes de cada `git push`. Se falharem, o push é cancelado.
+
+O hook está em `.git/hooks/pre-push` e monta o diretório `backend/` em modo leitura para disponibilizar os arquivos de teste no container.
+
+### Produção
+
+Os arquivos de teste são excluídos da imagem Docker via `.dockerignore` — não rodam em produção.
+
 ## Produção
 
 Para produção:
@@ -115,3 +145,40 @@ Para produção:
 - Painel administrativo completo (Django Admin)
 - Design responsivo e moderno
 - 15 produtos de exemplo em 8 categorias
+
+### Código Único e QR Code
+
+Cada produto possui um **código único** no formato `M2-XXXXX` (ex: `M2-00001`) gerado automaticamente no primeiro salvamento. Ao salvar, um **QR Code** é gerado contendo nome, código e preço do produto.
+
+- Código visível no admin, na página do produto e no QR Code
+- QR Code armazenado em `media/qrcodes/`
+- Regenerado automaticamente se nome ou preço mudarem
+
+### Página de Vendas (Balcão)
+
+**URL:** `/vendas/` (requer login)
+
+Sistema de ponto de venda (PDV) para vendas presenciais:
+
+- **Leitor de QR Code** — ativação manual com botão "Iniciar Scanner", usa a câmera do dispositivo
+- **Input manual** — digitar o código do produto (`M2-XXXXX`)
+- **Carrinho lateral** — sticky, com foto, quantidade (+/−) e valor por item
+- **Finalizar Venda** — modal com:
+  - Nome e telefone do cliente (opcional)
+  - Forma de pagamento: Dinheiro / Cartão / PIX / Outro
+- **Confirmação** — modal de sucesso com resumo da venda
+- **Subtração automática de estoque** ao confirmar a venda
+- **Login exclusivo** em `/vendas/entrar/` — página limpa, sem header/footer do site
+
+### Inventário de Estoque
+
+**URL:** `/vendas/estoque/` (requer login)
+
+Tabela completa do inventário:
+
+- Código, produto, categoria, quantidade
+- Preço de compra, preço de venda e preço promocional
+- Valor total por produto (preço de compra × quantidade)
+- Total geral do estoque (custo)
+- Destaque visual para estoque baixo (≤5) e zerado
+- Cards de resumo: total de itens e valor total (custo)

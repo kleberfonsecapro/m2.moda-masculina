@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from decouple import config, Csv
 
@@ -69,6 +70,12 @@ DATABASES = {
         },
     }
 }
+
+if 'test' in sys.argv or 'test_coverage' in sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},

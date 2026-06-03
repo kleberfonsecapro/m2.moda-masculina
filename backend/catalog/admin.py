@@ -132,13 +132,45 @@ class CategoryAdmin(admin.ModelAdmin):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 'category', 'price', 'promotional_price',
-        'stock', 'available', 'featured', 'created_at'
+        'code', 'name', 'category', 'purchase_price', 'price', 'promotional_price',
+        'stock', 'stock_value_display', 'available', 'featured', 'created_at'
     ]
+    list_display_links = ['code', 'name']
     list_filter = ['available', 'featured', 'category', 'created_at']
-    list_editable = ['price', 'promotional_price', 'stock', 'available', 'featured']
+    list_editable = ['purchase_price', 'price', 'promotional_price', 'stock', 'available', 'featured']
     prepopulated_fields = {'slug': ('name',)}
-    search_fields = ['name', 'description']
+    search_fields = ['code', 'name', 'description']
     raw_id_fields = ['category']
     date_hierarchy = 'created_at'
     ordering = ['-created_at']
+    readonly_fields = ['code', 'qrcode_preview']
+
+    fieldsets = [
+        ('Identificação', {
+            'fields': ['code', 'name', 'slug', 'category'],
+        }),
+        ('Precificação', {
+            'fields': ['purchase_price', 'price', 'promotional_price'],
+        }),
+        ('Imagens', {
+            'fields': ['image', 'qrcode_preview', 'qrcode_image'],
+        }),
+        ('Estoque', {
+            'fields': ['stock', 'available', 'featured'],
+        }),
+    ]
+
+    def qrcode_preview(self, obj):
+        if obj.qrcode_image:
+            return format_html(
+                '<img src="{}" style="max-height:150px;border:1px solid #ddd;border-radius:4px;padding:4px" />',
+                obj.qrcode_image.url
+            )
+        return '-'
+    qrcode_preview.short_description = 'Prévia do QR Code'
+
+    @admin.display(description='Valor Estoque')
+    def stock_value_display(self, obj):
+        return format_html(
+            'R$ {}', obj.stock_value
+        )

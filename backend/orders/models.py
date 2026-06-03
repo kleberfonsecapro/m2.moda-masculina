@@ -13,6 +13,13 @@ class Order(models.Model):
         ('cancelled', 'Cancelado'),
     ]
 
+    PAYMENT_CHOICES = [
+        ('cash', 'Dinheiro'),
+        ('card', 'Cartão'),
+        ('pix', 'PIX'),
+        ('other', 'Outro'),
+    ]
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='orders', verbose_name='Usuário'
@@ -24,6 +31,9 @@ class Order(models.Model):
     city = models.CharField('Cidade', max_length=100)
     state = models.CharField('Estado', max_length=50)
     zip_code = models.CharField('CEP', max_length=10)
+    payment_method = models.CharField(
+        'Forma de Pagamento', max_length=20, choices=PAYMENT_CHOICES, default='cash'
+    )
     status = models.CharField(
         'Status', max_length=20, choices=STATUS_CHOICES, default='pending'
     )

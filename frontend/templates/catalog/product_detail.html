@@ -17,6 +17,7 @@
             </div>
             <div class="product-detail-info">
                 <span class="product-category">{{ product.category.name }}</span>
+                <span class="product-code" style="display:block;font-size:0.85rem;color:#888;margin-top:4px">Código: {{ product.code }}</span>
                 <h1>{{ product.name }}</h1>
                 <div class="product-detail-price">
                     {% if product.promotional_price %}
@@ -38,6 +39,12 @@
                 <a href="https://wa.me/{{ whatsapp_number }}?text=Ol%C3%A1,%20tenho%20interesse%20no%20produto%20{{ product.name|urlencode }}%20-%20R$%20{{ product.effective_price|floatformat:2|urlencode }}" target="_blank" class="btn btn-primary btn-lg" style="background:#25D366;border-color:#25D366">
                     <i class="fab fa-whatsapp"></i> Comprar via WhatsApp
                 </a>
+                {% endif %}
+                {% if product.qrcode_image %}
+                <div class="product-qrcode" style="margin-top:20px;text-align:center">
+                    <img src="{{ product.qrcode_image.url }}" alt="QR Code {{ product.code }}" style="max-width:150px;border:1px solid #333;border-radius:4px;padding:4px">
+                    <p style="font-size:0.75rem;color:#888;margin-top:4px">Escaneie para ver os detalhes do produto</p>
+                </div>
                 {% endif %}
             </div>
         </div>

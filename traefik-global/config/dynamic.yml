@@ -28,7 +28,7 @@ http:
     m2-service:
       loadBalancer:
         servers:
-          - url: "http://m2-nginx:8080"
+          - url: "http://m2-nginx:80"
 
     blendburguer-service:
       loadBalancer:

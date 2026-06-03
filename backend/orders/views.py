@@ -26,12 +26,23 @@ def order_create(request):
             order.save()
 
             for cart_item in cart.items.all():
+                product = cart_item.product
+                if cart_item.quantity > product.stock:
+                    messages.error(
+                        request,
+                        f'Estoque insuficiente para {product.name}. Disponível: {product.stock}',
+                    )
+                    order.delete()
+                    return redirect('cart:cart_detail')
+
                 OrderItem.objects.create(
                     order=order,
-                    product=cart_item.product,
-                    price=cart_item.product.effective_price,
+                    product=product,
+                    price=product.effective_price,
                     quantity=cart_item.quantity,
                 )
+                product.stock -= cart_item.quantity
+                product.save(update_fields=['stock'])
 
             cart.items.all().delete()
             messages.success(request, 'Pedido realizado com sucesso!')

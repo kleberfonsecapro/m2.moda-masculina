@@ -1,5 +1,8 @@
+import io
+
 from django.db import models
 from django.urls import reverse
+from django.core.files.base import ContentFile
 
 
 class Category(models.Model):
@@ -26,15 +29,21 @@ class Product(models.Model):
         Category, on_delete=models.CASCADE, related_name='products',
         verbose_name='Categoria'
     )
+    code = models.CharField('Código', max_length=20, unique=True, blank=True)
     name = models.CharField('Nome', max_length=200)
     slug = models.SlugField(max_length=200, unique=True)
     description = models.TextField('Descrição')
-    price = models.DecimalField('Preço', max_digits=10, decimal_places=2)
+    purchase_price = models.DecimalField(
+        'Preço de Compra', max_digits=10, decimal_places=2,
+        default=0
+    )
+    price = models.DecimalField('Preço de Venda', max_digits=10, decimal_places=2)
     promotional_price = models.DecimalField(
         'Preço Promocional', max_digits=10, decimal_places=2,
         blank=True, null=True
     )
     image = models.ImageField('Imagem', upload_to='products/%Y/%m/')
+    qrcode_image = models.ImageField('QR Code', upload_to='qrcodes/', blank=True)
     stock = models.PositiveIntegerField('Estoque', default=0)
     available = models.BooleanField('Disponível', default=True)
     featured = models.BooleanField('Destaque', default=False)
@@ -51,7 +60,7 @@ class Product(models.Model):
         ]
 
     def __str__(self):
-        return self.name
+        return f'{self.code} - {self.name}' if self.code else self.name
 
     def get_absolute_url(self):
         return reverse('catalog:product_detail', args=[self.slug])
@@ -59,6 +68,49 @@ class Product(models.Model):
     @property
     def effective_price(self):
         return self.promotional_price if self.promotional_price else self.price
+
+    @property
+    def stock_value(self):
+        return (self.purchase_price or 0) * self.stock
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        skip_qrcode = kwargs.pop('_skip_qrcode', False)
+
+        super().save(*args, **kwargs)
+
+        if is_new and not self.code:
+            self.code = f'M2-{self.pk:05d}'
+            self.save(update_fields=['code'], _skip_qrcode=True)
+            self._generate_qrcode()
+            return
+
+        if not skip_qrcode:
+            self._generate_qrcode()
+
+    def _generate_qrcode(self):
+        if not self.code:
+            return
+
+        text = (
+            f'M2 Moda Masculina\n'
+            f'Produto: {self.name}\n'
+            f'Código: {self.code}\n'
+            f'Preço: R$ {self.effective_price}'
+        )
+
+        try:
+            import qrcode as qrcode_lib
+            img = qrcode_lib.make(text)
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            filename = f'qrcode_{self.code}.png'
+            self.qrcode_image.save(
+                filename, ContentFile(buffer.getvalue()), save=False
+            )
+            super().save(update_fields=['qrcode_image'])
+        except ImportError:
+            pass
 
 
 class FeaturedProduct(models.Model):
