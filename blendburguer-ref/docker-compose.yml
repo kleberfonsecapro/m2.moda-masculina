@@ -8,6 +8,8 @@ services:
     image: mysql:8.0
     container_name: blend-mysql
     restart: unless-stopped
+    mem_limit: 768m
+    mem_reservation: 512m
     networks:
       - web
     volumes:
@@ -29,6 +31,8 @@ services:
       dockerfile: backend/Dockerfile
     container_name: blend-django
     restart: unless-stopped
+    mem_limit: 512m
+    mem_reservation: 384m
     networks:
       - web
     volumes:
@@ -50,6 +54,8 @@ services:
     image: nginx:1.26-alpine
     container_name: blend-nginx
     restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 128m
     networks:
       - web
     volumes:

@@ -3,6 +3,8 @@ services:
     image: traefik:v3.1
     container_name: traefik
     restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 192m
     ports:
       - "80:80"
       - "443:443"

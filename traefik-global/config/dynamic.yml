@@ -1,8 +1,16 @@
 http:
   routers:
-    m2:
+    m2-duckdns:
+      rule: "Host(`m2moda.duckdns.org`)"
+      service: m2-service
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    m2-domain:
       rule: "Host(`m2moda.com.br`) || Host(`www.m2moda.com.br`)"
-      service: m2
+      service: m2-service
       entryPoints:
         - websecure
       tls:
@@ -10,19 +18,19 @@ http:
 
     blendburguer:
       rule: "Host(`blendburguer.com.br`) || Host(`www.blendburguer.com.br`)"
-      service: blendburguer
+      service: blendburguer-service
       entryPoints:
         - websecure
       tls:
         certResolver: letsencrypt
 
   services:
-    m2:
+    m2-service:
       loadBalancer:
         servers:
           - url: "http://m2-nginx:8080"
 
-    blendburguer:
+    blendburguer-service:
       loadBalancer:
         servers:
-          - url: "http://blend-nginx:8080"
+          - url: "http://nginx_blend:80"

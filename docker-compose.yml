@@ -8,6 +8,8 @@ services:
     image: mysql:8.0
     container_name: m2-mysql
     restart: unless-stopped
+    mem_limit: 768m
+    mem_reservation: 512m
     networks:
       - web
     volumes:
@@ -29,6 +31,8 @@ services:
       dockerfile: backend/Dockerfile
     container_name: m2-django
     restart: unless-stopped
+    mem_limit: 512m
+    mem_reservation: 384m
     networks:
       - web
     volumes:
@@ -48,8 +52,12 @@ services:
     build: ./nginx
     container_name: m2-nginx
     restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 128m
     networks:
       - web
+    ports:
+      - "8080:80"
     volumes:
       - static_volume:/staticfiles:ro
       - media_volume:/media:ro
