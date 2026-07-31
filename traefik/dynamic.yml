@@ -1,7 +1,7 @@
 http:
   routers:
     m2-duckdns:
-      rule: "Host(`m2moda.duckdns.org`) || Host(`10.62.30.157`)"
+      rule: "Host(`m2moda.duckdns.org`)"
       service: m2-service
       entryPoints:
         - websecure
@@ -28,7 +28,7 @@ http:
     m2-service:
       loadBalancer:
         servers:
-          - url: "http://m2-nginx:8080"
+          - url: "http://m2-nginx:80"
 
     blendburguer-service:
       loadBalancer:

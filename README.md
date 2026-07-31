@@ -31,10 +31,12 @@ m2-moda-masculina/
 │   ├── scripts/          # Scripts de seed
 │   └── manage.py
 ├── nginx/                # Config Nginx
-├── traefik/              # Config Traefik
+├── traefik/              # Config Traefik (referência)
+├── traefik-global/       # Stack Traefik global (borda, Let's Encrypt)
 ├── scripts/              # Scripts de inicialização
 ├── docker-compose.yml
-└── .env
+├── .env                  # (não versionado — copie de .env.example)
+└── .env.example          # Template documentado de variáveis
 ```
 
 ## Requisitos
@@ -102,7 +104,7 @@ docker compose ps
 
 ## Testes
 
-98 testes automatizados (unitários + integração) divididos entre os 4 apps (catalog, cart, orders, accounts).
+137 testes automatizados (unitários + integração) divididos entre os 4 apps (catalog, cart, orders, accounts).
 
 ```bash
 # Rodar todos os testes
@@ -129,11 +131,46 @@ Os arquivos de teste são excluídos da imagem Docker via `.dockerignore` — n�
 
 ## Produção
 
-Para produção:
-- Configure o domínio em `.env` (`DOMAIN=seudominio.com.br`)
-- Ajuste `nginx.conf` e `traefik/traefik.yml`
-- O Traefik gerará certificados SSL automáticos via Let's Encrypt
-- Consulte `docker-compose.prod.yml` para setup adicional
+### Preparação do ambiente
+
+```bash
+# 1. Crie o .env a partir do template (preencha SECRET_KEY, ADMIN_PASSWORD,
+#    senhas do MySQL e, em produção, o bloco de SMTP)
+cp .env.example .env
+
+# 2. Em produção SEMPRE: DEBUG=False e ALLOWED_HOSTS/CSRF_TRUSTED_ORIGINS/SITE_URL
+#    apontando para o domínio real (ex: m2moda.com.br)
+```
+
+### Rede e TLS
+
+- O Traefik (stack `traefik-global/`) é o reverse proxy de borda e gera certificados **Let's Encrypt** automáticos (m2moda.com.br, m2moda.duckdns.org).
+- A aplicação publica apenas a porta `8080` (nginx) — em produção o acesso público é exclusivamente via Traefik (`:80` → `:443`).
+- **Topologia de redes** (isolamento):
+  - `web` (externa): Traefik ↔ nginx (app web e estáticos)
+  - `db-network` (**internal**): apenas a aplicação acessa o MySQL — o banco não tem saída para a internet
+
+### Deploy
+
+```bash
+# Suba o Traefik global (rede 'web' externa + Let's Encrypt) — rodar na máquina de borda
+docker network create web  # apenas na primeira vez
+docker compose -f traefik-global/docker-compose.yml up -d
+
+# Suba a aplicação
+./scripts/start.sh          # equivalem a: docker compose up -d --build + migrate + seed
+```
+
+- `restart: unless-stopped` em todos os serviços (recupera de falhas/reboot).
+- `depends_on` atrelado a `healthcheck` real (`service_healthy`) em todas as dependências.
+- Persistência em volumes nomeados (`mysql_data`, `static_volume`, `media_volume`).
+- Com `DEBUG=False`, o Django ativa automaticamente: redirect HTTPS, HSTS, cookies `secure` e `SECURE_PROXY_SSL_HEADER`.
+
+### Email (verificação e password reset)
+
+- Sem valores SMTP, o Django usa o **console backend** (imprime no log do container) — **não serve para produção**.
+- Em produção configure `EMAIL_BACKEND=smtp`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER` e `EMAIL_HOST_PASSWORD` no `.env`.
+- Links de email usam `SITE_URL` (ex: `https://m2moda.com.br`).
 
 ## Funcionalidades
 
@@ -143,6 +180,7 @@ Para produção:
 - Cadastro e login de usuários
 - Finalização de pedidos
 - Painel administrativo completo (Django Admin)
+- Ticker de avisos ("bolsa de valores") no topo — gerido no admin (modelo `TickerMessage`)
 - Design responsivo e moderno
 - 15 produtos de exemplo em 8 categorias
 

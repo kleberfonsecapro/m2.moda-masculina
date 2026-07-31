@@ -38,7 +38,7 @@ echo ""
 echo "[3/3] Populando banco de dados com produtos de exemplo..."
 docker compose exec -T web python scripts/seed.py 2>/dev/null || {
   echo "     Primeira execução - copiando seed atualizado e tentando novamente..."
-  docker compose cp backend/scripts/seed.py web:/app/scripts/seed.py 2>/dev/null
+  docker compose cp backend/scripts/seed.py web:/app/backend/scripts/seed.py 2>/dev/null
   docker compose exec -T web python scripts/seed.py
 }
 
