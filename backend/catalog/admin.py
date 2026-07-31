@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django import forms
 from django.utils.html import format_html
-from .models import Category, Product, FeaturedProduct, CarouselSlide, CarouselSettings, SiteConfig
+from .models import Category, Product, Variant, FeaturedProduct, CarouselSlide, CarouselSettings, SiteConfig, TickerMessage, Newsletter
 
 
 class CarouselSettingsForm(forms.ModelForm):
@@ -120,6 +120,30 @@ class SiteConfigAdmin(admin.ModelAdmin):
         return False
 
 
+@admin.register(TickerMessage)
+class TickerMessageAdmin(admin.ModelAdmin):
+    list_display = ['text', 'order', 'active']
+    list_editable = ['order', 'active']
+    list_filter = ['active']
+    ordering = ['order', 'id']
+    search_fields = ['text']
+
+
+@admin.register(Newsletter)
+class NewsletterAdmin(admin.ModelAdmin):
+    list_display = ['email', 'created_at']
+    search_fields = ['email']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at']
+
+
+class VariantInline(admin.TabularInline):
+    model = Variant
+    extra = 0
+    fields = ['size', 'color', 'stock', 'sku', 'order']
+    ordering = ['order', 'size']
+
+
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ['name', 'slug', 'featured', 'created_at']
@@ -129,8 +153,17 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ['name']
 
 
+@admin.register(Variant)
+class VariantAdmin(admin.ModelAdmin):
+    list_display = ['product', 'size', 'color', 'stock', 'sku', 'order']
+    list_filter = ['product__category']
+    search_fields = ['product__name', 'size', 'sku']
+    list_editable = ['stock', 'order']
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
+    inlines = [VariantInline]
     list_display = [
         'code', 'name', 'category', 'purchase_price', 'price', 'promotional_price',
         'stock', 'stock_value_display', 'available', 'featured', 'created_at'

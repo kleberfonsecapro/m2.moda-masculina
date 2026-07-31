@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
 <html lang="pt-br">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,39 +9,44 @@
     <link rel="icon" type="image/jpeg" href="{% static 'images/logo-m2.jpg' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bebas+Neue&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
-
 <body>
-    <header class="header">
-        <div class="header-top">
-            <div class="container">
-                <span class="header-tagline">🔥 A loja do Homem que se valoriza </span>
-                <div class="header-top-links">
-                    {% if user.is_authenticated %}
-                    <a href="{% url 'accounts:profile' %}"><i class="fas fa-user"></i> {{ user.first_name|default:user.username }}</a>
-                    <form method="post" action="{% url 'accounts:logout' %}" style="display:inline">
-                        {% csrf_token %}
-                        <button type="submit"
-                            style="background:none;border:none;color:inherit;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;font-size:0.75rem;font-family:inherit;letter-spacing:1px">
-                            <i class="fas fa-sign-out-alt"></i> Sair
-                        </button>
-                    </form>
-                    {% else %}
-                    <a href="{% url 'accounts:login' %}"><i class="fas fa-sign-in-alt"></i> Entrar</a>
-                    {% endif %}
+    <div class="header-top">
+        <div class="container header-top-inner">
+            <div class="ticker" aria-label="Avisos do site">
+                <div class="ticker-track" style="animation-duration: {{ ticker_duration }}s">
+                    {% for phrase in ticker_messages %}
+                    <span class="ticker-item">{{ phrase }}</span>
+                    {% endfor %}
+                    {% for phrase in ticker_messages %}
+                    <span class="ticker-item">{{ phrase }}</span>
+                    {% endfor %}
                 </div>
             </div>
+            <div class="header-top-links">
+                {% if user.is_authenticated %}
+                <a href="{% url 'accounts:profile' %}"><i class="fas fa-user"></i> {{ user.first_name|default:user.username }}</a>
+                <form method="post" action="{% url 'accounts:logout' %}" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit"><i class="fas fa-sign-out-alt"></i> Sair</button>
+                </form>
+                {% else %}
+                <a href="{% url 'accounts:login' %}"><i class="fas fa-sign-in-alt"></i> Entrar</a>
+                {% endif %}
+            </div>
         </div>
+    </div>
+
+    <header class="header">
         <div class="header-main">
             <div class="container">
                 <a href="{% url 'catalog:home' %}" class="logo">
                     <img src="{% static 'images/logo-m2.jpg' %}" alt="M2 Moda Masculina" class="logo-img">
+                    <span class="logo-text">M2 Moda <span>Masculina</span></span>
                 </a>
                 <nav class="nav" id="mainNav">
                     <ul class="nav-list">
@@ -57,16 +61,24 @@
                     </ul>
                 </nav>
                 <div class="header-actions">
-                    <a href="{% url 'cart:cart_detail' %}" class="cart-btn">
+                    <button class="search-toggle" id="searchToggle" aria-label="Buscar">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button class="cart-btn" id="cartToggle" aria-label="Carrinho">
                         <i class="fas fa-shopping-bag"></i>
-                        {% if cart_items_count > 0 %}
-                        <span class="cart-badge">{{ cart_items_count }}</span>
-                        {% endif %}
-                    </a>
+                        <span class="cart-badge" id="cartBadge" style="display:none">0</span>
+                    </button>
                     <button class="menu-toggle" id="menuToggle" aria-label="Menu">
                         <i class="fas fa-bars"></i>
                     </button>
                 </div>
+            </div>
+        </div>
+        <div class="search-bar" id="searchBar">
+            <div class="container">
+                <input type="text" id="searchInput" placeholder="Buscar produtos..." autocomplete="off">
+                <button class="btn btn-dark" id="searchBtn"><i class="fas fa-search"></i></button>
+                <div class="search-results" id="searchResults"></div>
             </div>
         </div>
     </header>
@@ -92,36 +104,34 @@
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-brand">
-                    <span class="footer-logo">M2 Moda Masculina</span>
+                    <span class="footer-logo">M2 Moda <span>Masculina</span></span>
                     <p>Moda masculina com estilo urbano e atitude. Streetwear de verdade.</p>
                     <div class="footer-social">
-                        {% if instagram %}<a href="{{ instagram }}" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>{% endif %}
-                        {% if facebook %}<a href="{{ facebook }}" target="_blank" aria-label="Facebook"><i class="fab fa-facebook"></i></a>{% endif %}
-                        {% if youtube %}<a href="{{ youtube }}" target="_blank" aria-label="YouTube"><i class="fab fa-youtube"></i></a>{% endif %}
-                        {% if tiktok %}<a href="{{ tiktok }}" target="_blank" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>{% endif %}
-                        {% if twitter %}<a href="{{ twitter }}" target="_blank" aria-label="Twitter"><i class="fab fa-x-twitter"></i></a>{% endif %}
-                        {% if whatsapp_number %}<a href="https://wa.me/{{ whatsapp_number }}" target="_blank" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>{% endif %}
+                        {% if instagram %}<a href="{{ instagram }}" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fab fa-instagram"></i></a>{% endif %}
+                        {% if facebook %}<a href="{{ facebook }}" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fab fa-facebook"></i></a>{% endif %}
+                        {% if youtube %}<a href="{{ youtube }}" target="_blank" rel="noopener noreferrer" aria-label="YouTube"><i class="fab fa-youtube"></i></a>{% endif %}
+                        {% if tiktok %}<a href="{{ tiktok }}" target="_blank" rel="noopener noreferrer" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>{% endif %}
+                        {% if twitter %}<a href="{{ twitter }}" target="_blank" rel="noopener noreferrer" aria-label="Twitter"><i class="fab fa-x-twitter"></i></a>{% endif %}
+                        {% if whatsapp_number %}<a href="https://wa.me/{{ whatsapp_number }}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>{% endif %}
                     </div>
                 </div>
                 <div class="footer-links">
                     <h4>Links Rápidos</h4>
                     <ul>
                         <li><a href="{% url 'catalog:product_list' %}">Catálogo</a></li>
-                        {% if instagram %}<li><a href="{{ instagram }}" target="_blank">Instagram</a></li>{% endif %}
+                        {% if instagram %}<li><a href="{{ instagram }}" target="_blank" rel="noopener noreferrer">Instagram</a></li>{% endif %}
                         <li><a href="#">Sobre Nós</a></li>
-                        <li><a href="#">Trocas e Devoluções</a></li>
                     </ul>
                 </div>
                 <div class="footer-links">
                     <h4>Ajuda</h4>
                     <ul>
                         <li><a href="#">Trocas e Devoluções</a></li>
-                        <li><a href="#">Sobre Nós</a></li>
+                        <li><a href="#">FAQ</a></li>
                     </ul>
                 </div>
                 <div class="footer-contact">
                     <h4>Contato</h4>
-                    {% if instagram %}<p><i class="fab fa-instagram"></i> {{ instagram }}</p>{% endif %}
                     {% if email %}<p><i class="fas fa-envelope"></i> {{ email }}</p>{% endif %}
                     <p><i class="fas fa-map-marker-alt"></i> Brasil</p>
                 </div>
@@ -132,12 +142,440 @@
         </div>
     </footer>
 
+    <div class="cart-sidebar-overlay" id="cartOverlay"></div>
+    <div class="cart-sidebar" id="cartSidebar">
+        <div class="cart-sidebar-header">
+            <h3><i class="fas fa-shopping-bag"></i> Carrinho</h3>
+            <button class="cart-sidebar-close" id="cartSidebarClose">&times;</button>
+        </div>
+        <div class="cart-sidebar-items" id="cartSidebarItems">
+            <div class="cart-empty">
+                <i class="fas fa-shopping-bag"></i>
+                <p>Seu carrinho está vazio</p>
+            </div>
+        </div>
+        <div class="cart-sidebar-footer" style="display:none">
+            <div class="cart-sidebar-total">
+                <span>Total</span>
+                <span id="cartSidebarTotal">R$ 0,00</span>
+            </div>
+            <a href="{% url 'catalog:store_checkout' %}" class="btn btn-primary btn-block">Finalizar Pedido</a>
+        </div>
+    </div>
+
+    {% if whatsapp_number %}
+    <a href="https://wa.me/{{ whatsapp_number }}" target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Fale conosco pelo WhatsApp">
+        <i class="fab fa-whatsapp"></i>
+    </a>
+    {% endif %}
+
+    <div class="quick-modal-overlay" id="quickModalOverlay">
+        <div class="quick-modal">
+            <button class="quick-modal-close" onclick="closeQuickModal()">&times;</button>
+            <div class="quick-modal-content">
+                <div class="quick-modal-image">
+                    <img id="quickModalImage" src="" alt="">
+                </div>
+                <div class="quick-modal-info">
+                    <h3 id="quickModalName"></h3>
+                    <div class="quick-modal-price" id="quickModalPrice"></div>
+                    <div class="variant-selector" id="quickModalVariants" style="display:none"></div>
+                    <div class="quick-qty">
+                        <button onclick="quickChangeQty(-1)">−</button>
+                        <input type="number" id="quickQtyInput" value="1" min="1" max="99">
+                        <button onclick="quickChangeQty(1)">+</button>
+                    </div>
+                    <input type="hidden" id="quickModalProductId" value="">
+                    <input type="hidden" id="quickModalSelectedVariant" value="">
+                    <button class="btn btn-primary btn-block" onclick="quickAddToCart()">
+                        <i class="fas fa-shopping-bag"></i> Adicionar ao Carrinho
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        document.getElementById('menuToggle').addEventListener('click', function () {
-            document.getElementById('mainNav').classList.toggle('nav-open');
+    // Mobile menu toggle
+    document.getElementById('menuToggle').addEventListener('click', function () {
+        document.getElementById('mainNav').classList.toggle('nav-open');
+    });
+
+    // Search toggle
+    const searchToggle = document.getElementById('searchToggle');
+    const searchBar = document.getElementById('searchBar');
+    if (searchToggle) {
+        searchToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            searchBar.classList.toggle('open');
+            if (searchBar.classList.contains('open')) {
+                setTimeout(() => document.getElementById('searchInput').focus(), 100);
+            }
         });
+    }
+
+    // Live search
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    let searchTimeout;
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const q = this.value.trim();
+            if (q.length < 2) {
+                searchResults.innerHTML = '';
+                searchResults.style.display = 'none';
+                return;
+            }
+            searchTimeout = setTimeout(function() {
+                fetch('/buscar/?q=' + encodeURIComponent(q))
+                    .then(r => r.json())
+                    .then(data => {
+                        searchResults.innerHTML = '';
+                        if (data.results && data.results.length > 0) {
+                            data.results.forEach(function(p) {
+                                var a = document.createElement('a');
+                                a.href = p.url;
+                                a.className = 'search-result-item';
+                                var img = document.createElement('img');
+                                img.src = p.image;
+                                img.alt = p.name;
+                                a.appendChild(img);
+                                var info = document.createElement('div');
+                                info.className = 'search-result-info';
+                                var h4 = document.createElement('h4');
+                                h4.textContent = p.name;
+                                info.appendChild(h4);
+                                var span = document.createElement('span');
+                                span.textContent = 'R$ ' + (p.promotional_price || p.price);
+                                info.appendChild(span);
+                                a.appendChild(info);
+                                searchResults.appendChild(a);
+                            });
+                            searchResults.style.display = 'block';
+                        } else {
+                            var div = document.createElement('div');
+                            div.className = 'search-result-item';
+                            div.style.cssText = 'justify-content:center;color:#999';
+                            div.textContent = 'Nenhum produto encontrado';
+                            searchResults.appendChild(div);
+                            searchResults.style.display = 'block';
+                        }
+                    });
+            }, 300);
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!searchBar.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
+        });
+    }
+
+    // Cart sidebar state
+    let cartOpen = false;
+
+    function openCart() {
+        cartOpen = true;
+        document.getElementById('cartOverlay').classList.add('open');
+        document.getElementById('cartSidebar').classList.add('open');
+        document.body.style.overflow = 'hidden';
+        loadCart();
+    }
+
+    function closeCart() {
+        cartOpen = false;
+        document.getElementById('cartOverlay').classList.remove('open');
+        document.getElementById('cartSidebar').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    document.getElementById('cartToggle').addEventListener('click', openCart);
+    document.getElementById('cartSidebarClose').addEventListener('click', closeCart);
+    document.getElementById('cartOverlay').addEventListener('click', closeCart);
+
+    function updateCartItem(key, action) {
+        fetch('/carrinho/atualizar/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({key: key, action: action})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                loadCart();
+            } else {
+                alert(data.error || 'Erro ao atualizar o carrinho.');
+            }
+        })
+        .catch(function() {
+            alert('Erro de conexão ao atualizar o carrinho.');
+        });
+    }
+
+    document.getElementById('cartSidebarItems').addEventListener('click', function(e) {
+        var btn = e.target.closest('.qty-increase, .qty-decrease, .cart-item-remove');
+        if (!btn || !btn.dataset.key) return;
+        e.preventDefault();
+        if (btn.classList.contains('qty-increase')) {
+            updateCartItem(btn.dataset.key, 'increase');
+        } else if (btn.classList.contains('qty-decrease')) {
+            updateCartItem(btn.dataset.key, 'decrease');
+        } else {
+            updateCartItem(btn.dataset.key, 'remove');
+        }
+    });
+
+    function loadCart() {
+        fetch('/carrinho/')
+            .then(r => r.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const itemsHtml = doc.querySelector('.cart-items');
+                const totalText = doc.querySelector('.summary-total span:last-child');
+                const sidebarItems = document.getElementById('cartSidebarItems');
+                const sidebarFooter = document.querySelector('.cart-sidebar-footer');
+                const sidebarTotal = document.getElementById('cartSidebarTotal');
+
+                if (itemsHtml && itemsHtml.children.length > 0) {
+                    sidebarItems.innerHTML = '';
+                    Array.from(itemsHtml.children).forEach(child => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'cart-sidebar-item';
+                        const img = child.querySelector('.cart-item-image img');
+                        const name = child.querySelector('.cart-item-info h3 a');
+                        const variant = child.querySelector('.cart-item-variant');
+                        const qty = child.querySelector('.qty-control input');
+                        const total = child.querySelector('.cart-item-total');
+                        const removeBtn = child.querySelector('.cart-item-remove');
+                        const decreaseBtn = child.querySelector('.qty-decrease');
+                        const increaseBtn = child.querySelector('.qty-increase');
+
+                        if (img) {
+                            var itemImg = document.createElement('img');
+                            itemImg.src = img.src;
+                            itemImg.alt = '';
+                            itemDiv.appendChild(itemImg);
+                        }
+                        var infoDiv = document.createElement('div');
+                        infoDiv.className = 'cart-sidebar-item-info';
+                        if (name) {
+                            var h4 = document.createElement('h4');
+                            h4.textContent = name.textContent;
+                            infoDiv.appendChild(h4);
+                        }
+                        if (variant) {
+                            var p = document.createElement('p');
+                            p.textContent = variant.textContent;
+                            infoDiv.appendChild(p);
+                        }
+                        if (qty) {
+                            var pQty = document.createElement('p');
+                            pQty.textContent = 'Qtd: ' + qty.value;
+                            infoDiv.appendChild(pQty);
+                        }
+                        if (total) {
+                            var pTotal = document.createElement('p');
+                            var strong = document.createElement('strong');
+                            strong.textContent = total.textContent;
+                            pTotal.appendChild(strong);
+                            infoDiv.appendChild(pTotal);
+                        }
+                        itemDiv.appendChild(infoDiv);
+                        if (removeBtn) itemDiv.appendChild(removeBtn.cloneNode(true));
+                        if (decreaseBtn) itemDiv.appendChild(decreaseBtn.cloneNode(true));
+                        if (increaseBtn) itemDiv.appendChild(increaseBtn.cloneNode(true));
+                        sidebarItems.appendChild(itemDiv);
+                    });
+                    if (sidebarFooter) sidebarFooter.style.display = 'block';
+                } else {
+                    sidebarItems.innerHTML = '<div class="cart-empty"><i class="fas fa-shopping-bag"></i><p>Seu carrinho está vazio</p></div>';
+                    if (sidebarFooter) sidebarFooter.style.display = 'none';
+                }
+                if (totalText) sidebarTotal.textContent = totalText.textContent;
+                updateCartBadge();
+            });
+    }
+
+    function updateCartBadge() {
+        fetch('/carrinho/')
+            .then(r => r.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const items = doc.querySelector('.cart-items');
+                const badge = document.getElementById('cartBadge');
+                if (items) {
+                    const count = items.querySelectorAll('.cart-item').length;
+                    if (count > 0) {
+                        badge.textContent = Array.from(items.querySelectorAll('.qty-control input')).reduce((a, b) => a + parseInt(b.value || 0), 0);
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function addToCart(productId, variantId, quantity) {
+        fetch('/carrinho/adicionar/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({product_id: productId, variant_id: variantId || null, quantity: quantity || 1})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const badge = document.getElementById('cartBadge');
+                badge.textContent = data.cart_count;
+                badge.style.display = data.cart_count > 0 ? 'flex' : 'none';
+                openCart();
+            } else {
+                alert(data.error);
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', updateCartBadge);
+
+    var selectedSizes = {};
+
+    function selectSize(btn) {
+        var pid = btn.dataset.productId;
+        var card = btn.closest('.product-card');
+        card.querySelectorAll('.size-btn').forEach(function(b) {
+            b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        selectedSizes[pid] = btn.dataset.variantId;
+    }
+
+    function openQuickModal(btn) {
+        var data = JSON.parse(btn.dataset.product);
+        document.getElementById('quickModalProductId').value = data.id;
+        document.getElementById('quickModalImage').src = data.image;
+        document.getElementById('quickModalName').textContent = data.name;
+        document.getElementById('quickModalPrice').textContent = data.price ? 'R$ ' + data.price : '';
+        document.getElementById('quickQtyInput').value = 1;
+
+        var variantContainer = document.getElementById('quickModalVariants');
+        if (data.has_variants && data.variants.length > 0) {
+            variantContainer.innerHTML = '';
+            var group = document.createElement('div');
+            group.className = 'variant-group';
+            var label = document.createElement('label');
+            label.textContent = 'Tamanho';
+            group.appendChild(label);
+            var options = document.createElement('div');
+            options.className = 'variant-options';
+            data.variants.forEach(function(v) {
+                var btn = document.createElement('button');
+                btn.className = 'variant-btn' + (v.stock < 1 ? ' out-of-stock' : '');
+                btn.dataset.variantId = v.id;
+                btn.onclick = function() { quickSelectSize(this); };
+                btn.textContent = v.size;
+                options.appendChild(btn);
+            });
+            group.appendChild(options);
+            variantContainer.appendChild(group);
+            variantContainer.style.display = 'block';
+            document.getElementById('quickModalSelectedVariant').value = '';
+        } else {
+            variantContainer.style.display = 'none';
+            document.getElementById('quickModalSelectedVariant').value = '';
+        }
+
+        document.getElementById('quickModalOverlay').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeQuickModal() {
+        document.getElementById('quickModalOverlay').style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    document.getElementById('quickModalOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closeQuickModal();
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeQuickModal();
+    });
+
+    function quickSelectSize(btn) {
+        btn.parentElement.querySelectorAll('.variant-btn').forEach(function(b) {
+            b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        document.getElementById('quickModalSelectedVariant').value = btn.dataset.variantId;
+    }
+
+    function quickChangeQty(delta) {
+        var input = document.getElementById('quickQtyInput');
+        var val = parseInt(input.value) || 1;
+        val = Math.max(1, Math.min(99, val + delta));
+        input.value = val;
+    }
+
+    function quickAddToCart() {
+        var productId = document.getElementById('quickModalProductId').value;
+        var variantId = document.getElementById('quickModalSelectedVariant').value;
+        if (!variantId) variantId = null;
+        var qty = parseInt(document.getElementById('quickQtyInput').value) || 1;
+
+        var btn = document.querySelector('#quickModalOverlay .btn-block');
+        var originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adicionando...';
+
+        fetch('/carrinho/adicionar/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({product_id: productId, variant_id: variantId || null, quantity: qty})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                btn.innerHTML = '<i class="fas fa-check"></i> Adicionado!';
+                btn.style.background = 'var(--color-success)';
+                var badge = document.getElementById('cartBadge');
+                badge.textContent = data.cart_count;
+                badge.style.display = data.cart_count > 0 ? 'flex' : 'none';
+                setTimeout(function() {
+                    closeQuickModal();
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                    btn.style.background = '';
+                }, 1200);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                alert(data.error);
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
     </script>
     {% block extra_js %}{% endblock %}
 </body>
-
 </html>

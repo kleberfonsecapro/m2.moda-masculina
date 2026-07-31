@@ -3,6 +3,30 @@
 
 {% block title %}{{ product.name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+.qty-input-group {
+    display: inline-flex; align-items: center;
+    border: 2px solid var(--color-light-gray); border-radius: var(--radius);
+    margin-bottom: 20px;
+}
+.qty-input-group button {
+    width: 40px; height: 40px; border: none; background: transparent;
+    font-size: 1.2rem; cursor: pointer; color: var(--color-dark-gray);
+}
+.qty-input-group button:hover { background: var(--color-off-white); }
+.qty-input-group input {
+    width: 60px; height: 40px; text-align: center; border: none;
+    border-left: 1px solid var(--color-light-gray);
+    border-right: 1px solid var(--color-light-gray);
+    font-family: var(--font-primary); font-size: 0.95rem;
+}
+.product-qrcode { margin-top: 24px; text-align: center; }
+.product-qrcode img { max-width: 120px; border: 1px solid var(--color-light-gray); border-radius: 4px; padding: 4px; display: inline-block; }
+.product-qrcode p { font-size: 0.7rem; color: var(--color-gray); margin-top: 4px; }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="section product-detail-section">
     <div class="container">
@@ -17,37 +41,74 @@
             </div>
             <div class="product-detail-info">
                 <span class="product-category">{{ product.category.name }}</span>
-                <span class="product-code" style="display:block;font-size:0.85rem;color:#888;margin-top:4px">Código: {{ product.code }}</span>
+                <span class="product-code">Código: {{ product.code }}</span>
                 <h1>{{ product.name }}</h1>
                 <div class="product-detail-price">
                     {% if product.promotional_price %}
                         <span class="price-old">R$ {{ product.price|floatformat:2 }}</span>
                         <span class="price-current">R$ {{ product.promotional_price|floatformat:2 }}</span>
+                        <span class="price-discount">-{{ product.discount_percentage }}%</span>
                     {% else %}
                         <span class="price-current">R$ {{ product.price|floatformat:2 }}</span>
                     {% endif %}
                 </div>
-                <p class="product-description">{{ product.description }}</p>
+
+                {% if product.has_variants %}
+                <div class="variant-selector">
+                    {% with sizes=product.sorted_sizes %}
+                    {% if sizes %}
+                    <div class="variant-group">
+                        <label>Tamanho</label>
+                        <div class="variant-options" id="sizeOptions">
+                            {% for v in sizes %}
+                            <button class="variant-btn {% if v.stock < 1 %}out-of-stock{% endif %}" data-variant-id="{{ v.id }}" data-size="{{ v.size }}" data-stock="{{ v.stock }}" onclick="selectVariant(this)">
+                                {{ v.size }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+                {% endif %}
+
                 <div class="product-stock">
-                    {% if product.stock > 0 %}
+                    {% if product.stock > 0 or product.has_variants %}
                         <span class="in-stock"><i class="fas fa-check-circle"></i> Em estoque</span>
                     {% else %}
                         <span class="out-of-stock"><i class="fas fa-times-circle"></i> Fora de estoque</span>
                     {% endif %}
                 </div>
-                {% if product.stock > 0 %}
-                <a href="https://wa.me/{{ whatsapp_number }}?text=Ol%C3%A1,%20tenho%20interesse%20no%20produto%20{{ product.name|urlencode }}%20-%20R$%20{{ product.effective_price|floatformat:2|urlencode }}" target="_blank" class="btn btn-primary btn-lg" style="background:#25D366;border-color:#25D366">
-                    <i class="fab fa-whatsapp"></i> Comprar via WhatsApp
-                </a>
-                {% endif %}
+
+                <div class="qty-input-group">
+                    <button onclick="changeQty(-1)">−</button>
+                    <input type="number" id="qtyInput" value="1" min="1" max="99">
+                    <button onclick="changeQty(1)">+</button>
+                </div>
+
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                    <button class="btn btn-primary btn-lg" onclick="handleBuy()">
+                        <i class="fas fa-shopping-bag"></i> Comprar Agora
+                    </button>
+                    <a href="https://wa.me/{{ whatsapp_number }}?text=Ol%C3%A1,%20tenho%20interesse%20no%20produto%20{{ product.name|urlencode }}%20-%20R$%20{{ product.effective_price|floatformat:2|urlencode }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-lg">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </a>
+                </div>
+
                 {% if product.qrcode_image %}
-                <div class="product-qrcode" style="margin-top:20px;text-align:center">
-                    <img src="{{ product.qrcode_image.url }}" alt="QR Code {{ product.code }}" style="max-width:150px;border:1px solid #333;border-radius:4px;padding:4px">
-                    <p style="font-size:0.75rem;color:#888;margin-top:4px">Escaneie para ver os detalhes do produto</p>
+                <div class="product-qrcode">
+                    <img src="{{ product.qrcode_image.url }}" alt="QR Code {{ product.code }}">
+                    <p>Escaneie para ver os detalhes do produto</p>
                 </div>
                 {% endif %}
             </div>
         </div>
+        {% if product.description %}
+        <div style="margin-top:48px;max-width:720px">
+            <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:12px">Descrição</h3>
+            <p class="product-description">{{ product.description }}</p>
+        </div>
+        {% endif %}
     </div>
 </section>
 
@@ -56,20 +117,21 @@
     <div class="container">
         <div class="section-header">
             <span class="section-subtitle">Relacionados</span>
-            <h2 class="section-title">Você Também Pode <span class="text-accent">Gostar</span></h2>
+            <h2 class="section-title">Você Também Pode Gostar</h2>
         </div>
         <div class="products-grid">
             {% for product in related_products %}
-            <div class="product-card">
+            <div class="product-card" data-product-id="{{ product.id }}">
                 <div class="product-image">
                     <a href="{{ product.get_absolute_url }}">
-                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy" class="img-primary">
+                        {% if product.secondary_image %}
+                        <img src="{{ product.secondary_image.url }}" alt="{{ product.name }}" loading="lazy" class="img-secondary">
+                        {% endif %}
                     </a>
-                    <div class="product-actions">
-                        <a href="https://wa.me/{{ whatsapp_number }}?text=Ol%C3%A1,%20tenho%20interesse%20no%20produto%20{{ product.name|urlencode }}%20-%20R$%20{{ product.effective_price|floatformat:2|urlencode }}" target="_blank" class="btn-add-cart" style="background:#25D366">
-                            <i class="fab fa-whatsapp"></i> WhatsApp
-                        </a>
-                    </div>
+                    {% if product.promotional_price %}
+                        <span class="product-badge discount">{{ product.discount_percentage }}% OFF</span>
+                    {% endif %}
                 </div>
                 <div class="product-info">
                     <span class="product-category">{{ product.category.name }}</span>
@@ -82,6 +144,11 @@
                             <span class="price-current">R$ {{ product.price|floatformat:2 }}</span>
                         {% endif %}
                     </div>
+                    <button class="btn btn-primary btn-sm btn-buy"
+                            data-product='{"id":{{ product.id }},"name":"{{ product.name|escapejs }}","image":"{{ product.image.url|escapejs }}","price":"{{ product.effective_price|floatformat:2 }}","has_variants":false,"variants":[]}'
+                            onclick="openQuickModal(this)">
+                        <i class="fas fa-shopping-bag"></i> Comprar
+                    </button>
                 </div>
             </div>
             {% endfor %}
@@ -89,4 +156,26 @@
     </div>
 </section>
 {% endif %}
+
+<script>
+var selectedVariantId = null;
+
+function selectVariant(btn) {
+    document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedVariantId = parseInt(btn.dataset.variantId);
+}
+
+function changeQty(delta) {
+    var input = document.getElementById('qtyInput');
+    var val = parseInt(input.value) || 1;
+    val = Math.max(1, Math.min(99, val + delta));
+    input.value = val;
+}
+
+function handleBuy() {
+    var qty = parseInt(document.getElementById('qtyInput').value) || 1;
+    addToCart({{ product.id }}, selectedVariantId, qty);
+}
+</script>
 {% endblock %}

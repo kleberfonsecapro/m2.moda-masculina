@@ -1,4 +1,7 @@
-from .models import SiteConfig
+from .models import SiteConfig, TickerMessage
+
+DEFAULT_TICKER_MESSAGES = ['🔥 Moda masculina com estilo e atitude']
+DEFAULT_TICKER_DURATION = 16
 
 
 def site_config(request):
@@ -29,4 +32,22 @@ def site_config(request):
         'tiktok': tiktok,
         'twitter': twitter,
         'email': email,
+    }
+
+
+def ticker(request):
+    try:
+        messages = list(TickerMessage.objects.filter(active=True))
+    except Exception:
+        messages = []
+
+    if not messages:
+        return {
+            'ticker_messages': DEFAULT_TICKER_MESSAGES,
+            'ticker_duration': DEFAULT_TICKER_DURATION,
+        }
+
+    return {
+        'ticker_messages': [m.text for m in messages],
+        'ticker_duration': max(DEFAULT_TICKER_DURATION, len(messages) * 8),
     }

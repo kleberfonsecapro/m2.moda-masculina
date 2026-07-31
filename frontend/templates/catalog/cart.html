@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Carrinho{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <h1>Meu Carrinho</h1>
+        <p>{{ cart_items|length }} item(ns) no carrinho</p>
+    </div>
+</section>
+
+<section class="section cart-section">
+    <div class="container">
+        {% if cart_items %}
+        <div class="cart-layout">
+            <div class="cart-items">
+                {% for item in cart_items %}
+                <div class="cart-item">
+                    <div class="cart-item-image">
+                        <a href="{{ item.product.get_absolute_url }}">
+                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+                        </a>
+                    </div>
+                    <div class="cart-item-info">
+                        <h3><a href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a></h3>
+                        {% if item.variant %}
+                        <div class="cart-item-variant">
+                            {% if item.variant.size %}Tamanho: {{ item.variant.size }}{% endif %}
+                            {% if item.variant.size and item.variant.color %} | {% endif %}
+                            {% if item.variant.color %}Cor: {{ item.variant.color }}{% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="cart-item-price">R$ {{ item.product.effective_price|floatformat:2 }}</div>
+                    </div>
+                    <div class="qty-control">
+                        <button class="qty-decrease" data-key="{{ item.key }}">−</button>
+                        <input type="text" value="{{ item.quantity }}" readonly>
+                        <button class="qty-increase" data-key="{{ item.key }}">+</button>
+                    </div>
+                    <div class="cart-item-total">R$ {{ item.total|floatformat:2 }}</div>
+                    <button class="cart-item-remove" data-key="{{ item.key }}"><i class="fas fa-trash-alt"></i></button>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="cart-summary">
+                <h3>Resumo</h3>
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span>R$ {{ cart_total|floatformat:2 }}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Frete</span>
+                    <span>Calcular no checkout</span>
+                </div>
+                <div class="summary-row summary-total">
+                    <span>Total</span>
+                    <span>R$ {{ cart_total|floatformat:2 }}</span>
+                </div>
+                <a href="{% url 'catalog:store_checkout' %}" class="btn btn-primary btn-block">Finalizar Pedido</a>
+                <a href="{% url 'catalog:product_list' %}" class="btn btn-outline btn-block" style="margin-top:8px">Continuar Comprando</a>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-shopping-bag"></i>
+            <h3>Seu carrinho está vazio</h3>
+            <p>Adicione produtos ao carrinho para continuar.</p>
+            <a href="{% url 'catalog:product_list' %}" class="btn btn-primary">Ver Produtos</a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+document.querySelectorAll('.qty-increase').forEach(btn => {
+    btn.addEventListener('click', function() {
+        fetch('/carrinho/atualizar/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({key: this.dataset.key, action: 'increase'})
+        }).then(r => r.json()).then(data => {
+            if (data.success) location.reload();
+        });
+    });
+});
+
+document.querySelectorAll('.qty-decrease').forEach(btn => {
+    btn.addEventListener('click', function() {
+        fetch('/carrinho/atualizar/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({key: this.dataset.key, action: 'decrease'})
+        }).then(r => r.json()).then(data => {
+            if (data.success) location.reload();
+        });
+    });
+});
+
+document.querySelectorAll('.cart-item-remove').forEach(btn => {
+    btn.addEventListener('click', function() {
+        fetch('/carrinho/atualizar/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({key: this.dataset.key, action: 'remove'})
+        }).then(r => r.json()).then(data => {
+            if (data.success) location.reload();
+        });
+    });
+});
+</script>
+{% endblock %}

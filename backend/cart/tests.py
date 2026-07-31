@@ -3,7 +3,7 @@ from io import BytesIO
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
-from catalog.models import Category, Product
+from catalog.models import Category, Product, Variant
 from .models import Cart, CartItem
 
 
@@ -54,6 +54,9 @@ class CartItemModelTest(TestCase):
             description='Desc', price=Decimal('100.00'),
             stock=5, available=True, image=get_test_image(),
         )
+        self.variant = Variant.objects.create(
+            product=self.product, size='M', stock=3
+        )
         self.item = CartItem.objects.create(cart=cart, product=self.product, quantity=2)
 
     def test_cart_item_str(self):
@@ -66,10 +69,15 @@ class CartItemModelTest(TestCase):
         self.product.promotional_price = Decimal('79.90')
         self.assertEqual(self.item.total, Decimal('159.80'))
 
-    def test_unique_together_constraint(self):
+    def test_unique_with_variant_constraint(self):
         with self.assertRaises(Exception):
             CartItem.objects.create(
-                cart=self.item.cart, product=self.product, quantity=1
+                cart=self.item.cart, product=self.product,
+                variant=self.variant, quantity=1,
+            )
+            CartItem.objects.create(
+                cart=self.item.cart, product=self.product,
+                variant=self.variant, quantity=1,
             )
 
 

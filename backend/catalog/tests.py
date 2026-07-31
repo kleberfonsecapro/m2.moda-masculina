@@ -2,7 +2,7 @@ from decimal import Decimal
 from io import BytesIO
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
-from .models import Category, Product, SiteConfig, CarouselSettings
+from .models import Category, Product, Variant, Newsletter, SiteConfig, CarouselSettings, TickerMessage
 
 
 def get_test_image():
@@ -96,6 +96,116 @@ class ProductModelTest(TestCase):
     def test_product_get_absolute_url(self):
         url = self.product.get_absolute_url()
         self.assertEqual(url, '/produto/camisa-teste/')
+
+
+class VariantModelTest(TestCase):
+    def setUp(self):
+        category = Category.objects.create(name='Camisas', slug='camisas')
+        self.product = Product.objects.create(
+            category=category, name='Camisa', slug='camisa',
+            description='Desc', price=Decimal('100.00'),
+            stock=10, available=True, image=get_test_image(),
+        )
+        self.variant = Variant.objects.create(
+            product=self.product, size='M', color='Preto',
+            stock=3, sku='CAM-M-PT', order=1,
+        )
+
+    def test_variant_str_with_size_and_color(self):
+        expected = 'Camisa - M / Preto'
+        self.assertEqual(str(self.variant), expected)
+
+    def test_variant_str_size_only(self):
+        v = Variant.objects.create(product=self.product, size='G', stock=2)
+        self.assertEqual(str(v), 'Camisa - G')
+
+    def test_variant_unique_together(self):
+        with self.assertRaises(Exception):
+            Variant.objects.create(
+                product=self.product, size='M', color='Preto', stock=1,
+            )
+
+    def test_variant_default_stock(self):
+        v = Variant.objects.create(product=self.product, size='P')
+        self.assertEqual(v.stock, 0)
+
+    def test_variant_default_order(self):
+        v = Variant.objects.create(product=self.product, size='P')
+        self.assertEqual(v.order, 0)
+
+
+class NewsletterModelTest(TestCase):
+    def test_newsletter_creation(self):
+        nl = Newsletter.objects.create(email='teste@teste.com')
+        self.assertEqual(str(nl), 'teste@teste.com')
+
+    def test_newsletter_unique_email(self):
+        Newsletter.objects.create(email='teste@teste.com')
+        with self.assertRaises(Exception):
+            Newsletter.objects.create(email='teste@teste.com')
+
+
+class ProductPropertiesTest(TestCase):
+    def setUp(self):
+        category = Category.objects.create(name='Camisas', slug='camisas')
+        self.product = Product.objects.create(
+            category=category, name='Camisa', slug='camisa',
+            description='Desc', price=Decimal('100.00'),
+            promotional_price=Decimal('69.90'), stock=10,
+            available=True, image=get_test_image(),
+        )
+
+    def test_discount_percentage(self):
+        self.assertEqual(self.product.discount_percentage, 30)
+
+    def test_discount_percentage_zero_when_no_promotion(self):
+        self.product.promotional_price = None
+        self.assertEqual(self.product.discount_percentage, 0)
+
+    def test_has_variants_false_initially(self):
+        self.assertFalse(self.product.has_variants)
+
+    def test_has_variants_true_with_variants(self):
+        Variant.objects.create(product=self.product, size='M', stock=3)
+        self.assertTrue(self.product.has_variants)
+
+    def test_sorted_sizes(self):
+        for size in ['GG', 'P', 'M', 'G']:
+            Variant.objects.create(product=self.product, size=size, stock=1)
+        sizes = [v.size for v in self.product.sorted_sizes]
+        self.assertEqual(sizes, ['P', 'M', 'G', 'GG'])
+
+
+class ProductSearchViewTest(TestCase):
+    def setUp(self):
+        category = Category.objects.create(name='Camisas', slug='camisas')
+        self.product = Product.objects.create(
+            category=category, name='Camisa Polo', slug='camisa-polo',
+            description='Desc', price=Decimal('100.00'),
+            stock=5, available=True, image=get_test_image(),
+        )
+        Product.objects.create(
+            category=category, name='Camiseta', slug='camiseta',
+            description='Desc', price=Decimal('50.00'),
+            stock=3, available=True, image=get_test_image(),
+        )
+
+    def test_search_by_name(self):
+        response = self.client.get('/buscar/?q=Polo')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data['results']), 1)
+        self.assertEqual(data['results'][0]['name'], 'Camisa Polo')
+
+    def test_search_returns_empty_for_short_query(self):
+        response = self.client.get('/buscar/?q=a')
+        data = response.json()
+        self.assertEqual(len(data['results']), 0)
+
+    def test_search_returns_all_matches(self):
+        response = self.client.get('/buscar/?q=camis')
+        data = response.json()
+        self.assertEqual(len(data['results']), 2)
 
 
 class HomeViewTest(TestCase):
@@ -217,6 +327,55 @@ class SiteConfigTest(TestCase):
     def test_site_config_str(self):
         config = SiteConfig.objects.create(whatsapp_number='5511999999999')
         self.assertEqual(str(config), 'Configurações do Site')
+
+
+class TickerMessageTest(TestCase):
+    def setUp(self):
+        TickerMessage.objects.all().delete()
+        self.phrase = TickerMessage.objects.create(text='🔥 Promoção relâmpago', order=1)
+
+    def test_ticker_str(self):
+        self.assertEqual(str(self.phrase), '🔥 Promoção relâmpago')
+
+    def test_ticker_ordering(self):
+        TickerMessage.objects.create(text='Primeira', order=0)
+        texts = list(TickerMessage.objects.values_list('text', flat=True))
+        self.assertEqual(texts, ['Primeira', '🔥 Promoção relâmpago'])
+
+    def test_ticker_active_defaults_to_true(self):
+        self.assertTrue(self.phrase.active)
+
+
+class TickerContextProcessorTest(TestCase):
+    def setUp(self):
+        TickerMessage.objects.all().delete()
+
+    def test_returns_default_when_no_messages(self):
+        response = self.client.get('/')
+        self.assertEqual(response.context['ticker_messages'], ['🔥 Moda masculina com estilo e atitude'])
+        self.assertEqual(response.context['ticker_duration'], 16)
+
+    def test_returns_only_active_ordered_messages(self):
+        TickerMessage.objects.create(text='Segunda frase', order=1, active=True)
+        TickerMessage.objects.create(text='Primeira frase', order=0, active=True)
+        TickerMessage.objects.create(text='Inativa', order=2, active=False)
+        response = self.client.get('/')
+        self.assertEqual(
+            response.context['ticker_messages'],
+            ['Primeira frase', 'Segunda frase'],
+        )
+
+    def test_duration_scales_with_message_count(self):
+        for i in range(3):
+            TickerMessage.objects.create(text=f'Frase {i}', order=i, active=True)
+        response = self.client.get('/')
+        self.assertEqual(response.context['ticker_duration'], 24)
+
+    def test_ticker_rendered_on_home(self):
+        TickerMessage.objects.create(text='🔥 Moda masculina com estilo e atitude', order=0, active=True)
+        response = self.client.get('/')
+        self.assertContains(response, 'ticker-track')
+        self.assertContains(response, 'Moda masculina com estilo e atitude')
 
 
 class CarouselSettingsTest(TestCase):
@@ -342,3 +501,139 @@ class SalesPageTest(TestCase):
         self.assertEqual(response.status_code, 400)
         data = response.json()
         self.assertIn('error', data)
+
+
+class StoreCartTest(TestCase):
+    def setUp(self):
+        category = Category.objects.create(name='Roupas', slug='roupas')
+        self.product = Product.objects.create(
+            category=category, name='Camisa Polo', slug='camisa-polo',
+            description='Desc', price=Decimal('100.00'),
+            stock=10, available=True, image=get_test_image(),
+        )
+
+    def post_json(self, url, payload):
+        return self.client.post(
+            url, payload, content_type='application/json',
+        )
+
+    def add(self, product_id, quantity=1, variant_id=None):
+        return self.post_json('/carrinho/adicionar/', {
+            'product_id': product_id,
+            'variant_id': variant_id,
+            'quantity': quantity,
+        })
+
+    def test_add_to_cart_success(self):
+        response = self.add(self.product.id)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['cart_count'], 1)
+
+    def test_add_to_cart_increments_existing_item(self):
+        self.add(self.product.id)
+        response = self.add(self.product.id)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['cart_count'], 2)
+
+    def test_add_to_cart_multiple_products(self):
+        other = Product.objects.create(
+            category=self.product.category, name='Camiseta', slug='camiseta',
+            description='Desc', price=Decimal('50.00'),
+            stock=5, available=True, image=get_test_image(),
+        )
+        self.add(self.product.id)
+        response = self.add(other.id)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['cart_count'], 2)
+
+    def test_add_to_cart_exceeds_stock(self):
+        self.product.stock = 3
+        self.product.save()
+        response = self.add(self.product.id, quantity=5)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Estoque insuficiente', response.json()['error'])
+
+    def test_add_to_cart_accumulated_exceeds_stock(self):
+        self.product.stock = 2
+        self.product.save()
+        self.add(self.product.id)
+        response = self.add(self.product.id, quantity=2)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Estoque insuficiente', response.json()['error'])
+
+    def test_add_to_cart_invalid_json(self):
+        response = self.client.post(
+            '/carrinho/adicionar/',
+            data='not-json',
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_add_to_cart_missing_product(self):
+        response = self.post_json('/carrinho/adicionar/', {'quantity': 1})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('obrigatórios', response.json()['error'])
+
+    def test_add_to_cart_zero_quantity(self):
+        response = self.add(self.product.id, quantity=0)
+        self.assertEqual(response.status_code, 400)
+
+    def test_add_to_cart_unavailable_product(self):
+        self.product.available = False
+        self.product.save()
+        response = self.add(self.product.id)
+        self.assertEqual(response.status_code, 404)
+
+    def test_add_to_cart_nonexistent_product(self):
+        response = self.add(9999)
+        self.assertEqual(response.status_code, 404)
+
+    def test_add_to_cart_requires_post(self):
+        response = self.client.get('/carrinho/adicionar/')
+        self.assertEqual(response.status_code, 405)
+
+    def test_update_cart_increase(self):
+        self.add(self.product.id)
+        response = self.post_json('/carrinho/atualizar/', {
+            'key': f'{self.product.id}-', 'action': 'increase',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['cart_count'], 2)
+
+    def test_update_cart_decrease(self):
+        self.add(self.product.id)
+        self.add(self.product.id)
+        response = self.post_json('/carrinho/atualizar/', {
+            'key': f'{self.product.id}-', 'action': 'decrease',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['cart_count'], 1)
+
+    def test_update_cart_decrease_never_below_one(self):
+        self.add(self.product.id)
+        response = self.post_json('/carrinho/atualizar/', {
+            'key': f'{self.product.id}-', 'action': 'decrease',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['cart_count'], 1)
+
+    def test_update_cart_remove(self):
+        self.add(self.product.id)
+        response = self.post_json('/carrinho/atualizar/', {
+            'key': f'{self.product.id}-', 'action': 'remove',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['cart_count'], 0)
+
+    def test_cart_page_empty(self):
+        response = self.client.get('/carrinho/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Seu carrinho está vazio')
+
+    def test_cart_page_shows_item(self):
+        self.add(self.product.id)
+        response = self.client.get('/carrinho/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Camisa Polo')

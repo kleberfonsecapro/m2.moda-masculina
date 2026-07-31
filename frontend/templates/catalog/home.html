@@ -4,99 +4,30 @@
 {% block title %}Início{% endblock %}
 
 {% block content %}
-<section class="hero">
-    <div class="hero-carousel">
-        {% for slide in slides %}
-        <div class="hero-slide{% if forloop.first %} active{% endif %}" style="background-image: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%), url('{% if slide.image %}{{ slide.image.url }}{% else %}{{ slide.image_url }}{% endif %}');">
-            <div class="container">
-                <div class="hero-content">
-                    {% if slide.label %}
-                    <span class="hero-label">{{ slide.label }}</span>
-                    {% endif %}
-                    <h1>{{ slide.title }} {% if slide.title_highlight %}<span class="text-accent">{{ slide.title_highlight }}</span>{% endif %}</h1>
-                    {% if slide.description %}
-                    <p>{{ slide.description }}</p>
-                    {% endif %}
-                    <a href="{{ slide.link_url|default:'/' }}" class="btn btn-primary">{{ slide.link_text }}</a>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    <div class="hero-controls">
-        {% for slide in slides %}
-        <button class="hero-dot{% if forloop.first %} active{% endif %}" data-slide="{{ forloop.counter0 }}"></button>
-        {% endfor %}
-    </div>
-</section>
-
-<section class="section categories-section">
-    <div class="container">
-        <div class="section-header">
-            <span class="section-subtitle">Categorias</span>
-            <h2 class="section-title">Explore Nossas <span class="text-accent">Categorias</span></h2>
-        </div>
-        <div class="categories-grid">
-            {% for category in categories %}
-            <a href="{% url 'catalog:product_list_by_category' category.slug %}" class="category-card{% if category.featured %} featured{% endif %}">
-                {% if category.featured %}<span class="category-badge">Destaque</span>{% endif %}
-                <div class="category-icon">
-                    {% if category.slug == 'camisas-peruanas' %}
-                        <i class="fas fa-tshirt"></i>
-                    {% elif category.slug == 'camisetas-oversized' %}
-                        <i class="fas fa-tshirt"></i>
-                    {% elif category.slug == 'camisas-time' %}
-                        <i class="fas fa-futbol"></i>
-                    {% elif category.slug == 'joggers' %}
-                        <i class="fas fa-vest"></i>
-                    {% elif category.slug == 'cargo-pants' %}
-                        <i class="fas fa-vest"></i>
-                    {% elif category.slug == 'jaquetas' %}
-                        <i class="fas fa-vest"></i>
-                    {% elif category.slug == 'calcados' %}
-                        <i class="fas fa-shoe-prints"></i>
-                    {% elif category.slug == 'acessorios' %}
-                        <i class="fas fa-glasses"></i>
-                    {% else %}
-                        <i class="fas fa-tag"></i>
-                    {% endif %}
-                </div>
-                <h3>{{ category.name }}</h3>
-                <p>{{ category.description|truncatewords:8 }}</p>
-            </a>
-            {% empty %}
-            <div class="empty-state">
-                <p>Categorias em breve...</p>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</section>
-
 <section class="section featured-section">
     <div class="container">
         <div class="section-header">
             <span class="section-subtitle">Destaques</span>
-            <h2 class="section-title">Produtos em <span class="text-accent">Destaque</span></h2>
+            <h2 class="section-title">Produtos em Destaque</h2>
         </div>
-        <div class="products-grid">
+        <div class="products-grid" id="featuredGrid">
             {% for item in featured_items %}
             {% with product=item.product %}
-            <div class="product-card">
+            <div class="product-card" data-product-id="{{ product.id }}">
                 <div class="product-image">
                     <a href="{{ product.get_absolute_url }}">
-                        <img src="{% if item.image %}{{ item.image.url }}{% else %}{{ product.image.url }}{% endif %}" alt="{{ product.name }}">
+                        <img src="{% if item.image %}{{ item.image.url }}{% else %}{{ product.image.url }}{% endif %}" alt="{{ product.name }}" loading="lazy" class="img-primary">
+                        {% if product.secondary_image %}
+                        <img src="{{ product.secondary_image.url }}" alt="{{ product.name }}" loading="lazy" class="img-secondary">
+                        {% endif %}
                     </a>
-                    {% if item.label %}
+                    {% if not product.available or product.stock < 1 and not product.has_variants %}
+                        <span class="product-badge sold-out">Esgotado</span>
+                    {% elif item.label %}
                         <span class="product-badge">{{ item.label }}</span>
                     {% elif product.promotional_price %}
-                        <span class="product-badge">Oferta</span>
+                        <span class="product-badge discount">{{ product.discount_percentage }}% OFF</span>
                     {% endif %}
-                    <div class="product-actions">
-                        <a href="https://wa.me/{{ whatsapp_number }}?text=Ol%C3%A1,%20tenho%20interesse%20no%20produto%20{{ product.name|urlencode }}%20-%20R$%20{{ product.effective_price|floatformat:2|urlencode }}" target="_blank" class="btn-add-cart" style="background:#25D366">
-                            <i class="fab fa-whatsapp"></i> WhatsApp
-                        </a>
-                    </div>
                 </div>
                 <div class="product-info">
                     <span class="product-category">{{ product.category.name }}</span>
@@ -109,6 +40,23 @@
                             <span class="price-current">R$ {{ product.price|floatformat:2 }}</span>
                         {% endif %}
                     </div>
+                    {% if product.has_variants %}
+                    <div class="product-sizes">
+                        {% for v in product.sorted_sizes %}
+                        <button class="size-btn{% if v.stock < 1 %} out-of-stock{% endif %}"
+                                data-variant-id="{{ v.id }}" data-size="{{ v.size }}"
+                                data-product-id="{{ product.id }}"
+                                onclick="event.stopPropagation(); selectSize(this)">
+                            {{ v.size }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <button class="btn btn-primary btn-sm btn-buy"
+                            data-product='{"id":{{ product.id }},"name":"{{ product.name|escapejs }}","image":"{% if item.image %}{{ item.image.url|escapejs }}{% else %}{{ product.image.url|escapejs }}{% endif %}","price":"{{ product.effective_price|floatformat:2 }}","has_variants":{{ product.has_variants|lower }},"variants":[{% for v in product.sorted_sizes %}{"id":{{ v.id }},"size":"{{ v.size|escapejs }}","stock":{{ v.stock }}}{% if not forloop.last %},{% endif %}{% endfor %}]}'
+                            onclick="openQuickModal(this)">
+                        <i class="fas fa-shopping-bag"></i> Comprar
+                    </button>
                 </div>
             </div>
             {% endwith %}
@@ -122,61 +70,105 @@
     </div>
 </section>
 
-<section class="section banner-section">
+{% if recent_products %}
+<section class="section recent-section">
     <div class="container">
-        <div class="banner-card">
-            <div class="banner-content">
-                <span class="banner-tag">Camisas de Time</span>
-                <h2>Seleção <span class="text-accent">Brasil</span> & <span class="text-accent">França</span></h2>
-                <p>As melhores camisas de futebol retrô e modernas. Vista sua paixão com estilo.</p>
-                <a href="{% url 'catalog:product_list_by_category' 'camisas-time' %}" class="btn btn-primary">Ver Camisas</a>
+        <div class="section-header">
+            <span class="section-subtitle">Lançamentos</span>
+            <h2 class="section-title">Novidades</h2>
+        </div>
+        <div class="products-grid" id="recentGrid">
+            {% for product in recent_products %}
+            <div class="product-card" data-product-id="{{ product.id }}">
+                <div class="product-image">
+                    <a href="{{ product.get_absolute_url }}">
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy" class="img-primary">
+                        {% if product.secondary_image %}
+                        <img src="{{ product.secondary_image.url }}" alt="{{ product.name }}" loading="lazy" class="img-secondary">
+                        {% endif %}
+                    </a>
+                    {% if not product.available or product.stock < 1 and not product.has_variants %}
+                        <span class="product-badge sold-out">Esgotado</span>
+                    {% elif product.promotional_price %}
+                        <span class="product-badge discount">{{ product.discount_percentage }}% OFF</span>
+                    {% else %}
+                        <span class="product-badge new">Novo</span>
+                    {% endif %}
+                </div>
+                <div class="product-info">
+                    <span class="product-category">{{ product.category.name }}</span>
+                    <h3><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
+                    <div class="product-price">
+                        {% if product.promotional_price %}
+                            <span class="price-old">R$ {{ product.price|floatformat:2 }}</span>
+                            <span class="price-current">R$ {{ product.promotional_price|floatformat:2 }}</span>
+                        {% else %}
+                            <span class="price-current">R$ {{ product.price|floatformat:2 }}</span>
+                        {% endif %}
+                    </div>
+                    {% if product.has_variants %}
+                    <div class="product-sizes">
+                        {% for v in product.sorted_sizes %}
+                        <button class="size-btn{% if v.stock < 1 %} out-of-stock{% endif %}"
+                                data-variant-id="{{ v.id }}" data-size="{{ v.size }}"
+                                data-product-id="{{ product.id }}"
+                                onclick="event.stopPropagation(); selectSize(this)">
+                            {{ v.size }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <button class="btn btn-primary btn-sm btn-buy"
+                            data-product='{"id":{{ product.id }},"name":"{{ product.name|escapejs }}","image":"{{ product.image.url|escapejs }}","price":"{{ product.effective_price|floatformat:2 }}","has_variants":{{ product.has_variants|lower }},"variants":[{% for v in product.sorted_sizes %}{"id":{{ v.id }},"size":"{{ v.size|escapejs }}","stock":{{ v.stock }}}{% if not forloop.last %},{% endif %}{% endfor %}]}'
+                            onclick="openQuickModal(this)">
+                        <i class="fas fa-shopping-bag"></i> Comprar
+                    </button>
+                </div>
             </div>
-            <div class="banner-image">
-                <img src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=600" alt="Camisas de Time">
-            </div>
+            {% endfor %}
         </div>
     </div>
 </section>
+{% endif %}
 
-<section class="section features-section">
+<section class="section newsletter-section">
     <div class="container">
-        <div class="features-grid">
-            <div class="feature-item">
-                <i class="fas fa-tshirt"></i>
-                <h4>Camisa do Brasil</h4>
-                <p>Na compra de R$ 250,00 ganhe uma camisa do Brasil</p>
-            </div>
-            <div class="feature-item">
-                <i class="fas fa-clock"></i>
-                <h4>Atendimento</h4>
-                <p>Suporte de segunda a sábado</p>
-            </div>
+        <div class="newsletter-box">
+            <h3>Fique por dentro</h3>
+            <p>Receba novidades e ofertas exclusivas no seu e-mail.</p>
+            <form class="newsletter-form" id="newsletterForm" method="post">
+                {% csrf_token %}
+                <input type="email" id="newsletterEmail" placeholder="Seu melhor e-mail" required>
+                <button type="submit" class="btn btn-primary">Inscrever</button>
+            </form>
+            <p id="newsletterMsg" style="margin-top:12px;font-size:0.85rem;display:none"></p>
         </div>
     </div>
 </section>
 
 <script>
-    let currentSlide = 0;
-    const slides = document.querySelectorAll('.hero-slide');
-    const dots = document.querySelectorAll('.hero-dot');
-
-    function showSlide(index) {
-        slides.forEach(s => s.classList.remove('active'));
-        dots.forEach(d => d.classList.remove('active'));
-        slides[index].classList.add('active');
-        dots[index].classList.add('active');
-        currentSlide = index;
-    }
-
-    dots.forEach(dot => {
-        dot.addEventListener('click', () => {
-            showSlide(parseInt(dot.dataset.slide));
+    document.getElementById('newsletterForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var email = document.getElementById('newsletterEmail').value;
+        fetch('/newsletter/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({email: email})
+        })
+        .then(r => r.json())
+        .then(data => {
+            var msg = document.getElementById('newsletterMsg');
+            if (data.success) {
+                    msg.textContent = 'Inscrição realizada com sucesso!';
+                msg.style.color = 'var(--color-success)';
+                document.getElementById('newsletterEmail').value = '';
+            } else {
+                msg.textContent = data.error || 'Erro ao inscrever. Tente novamente.';
+                msg.style.color = 'var(--color-error)';
+            }
+            msg.style.display = 'block';
+            setTimeout(function() { msg.style.display = 'none'; }, 4000);
         });
     });
-
-    var autoplayInterval = {{ carousel_settings.autoplay_interval|default:5000 }};
-    setInterval(() => {
-        showSlide((currentSlide + 1) % slides.length);
-    }, autoplayInterval);
 </script>
 {% endblock %}

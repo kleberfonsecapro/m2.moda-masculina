@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    gosu \
     libmariadb-dev \
     libmariadb-dev-compat \
     pkg-config \
@@ -21,8 +22,16 @@ COPY frontend/ /app/frontend/
 
 WORKDIR /app/backend
 
-RUN mkdir -p staticfiles media
+RUN mkdir -p staticfiles media && \
+    addgroup --system appgroup && \
+    adduser --system --no-create-home --ingroup appgroup appuser && \
+    chown -R appuser:appgroup /app && \
+    chmod -R 755 /app
+
+COPY backend/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8000
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["gunicorn", "m2shop.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120"]

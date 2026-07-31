@@ -24,6 +24,32 @@ class Category(models.Model):
         return reverse('catalog:product_list_by_category', args=[self.slug])
 
 
+class Variant(models.Model):
+    product = models.ForeignKey(
+        'Product', on_delete=models.CASCADE, related_name='variants',
+        verbose_name='Produto'
+    )
+    size = models.CharField('Tamanho', max_length=20, blank=True, default='')
+    color = models.CharField('Cor', max_length=50, blank=True, default='')
+    stock = models.PositiveIntegerField('Estoque', default=0)
+    sku = models.CharField('SKU', max_length=50, blank=True, default='')
+    order = models.PositiveIntegerField('Ordem', default=0)
+
+    class Meta:
+        verbose_name = 'Variação'
+        verbose_name_plural = 'Variações'
+        ordering = ['order', 'size']
+        unique_together = [['product', 'size', 'color']]
+
+    def __str__(self):
+        parts = []
+        if self.size:
+            parts.append(self.size)
+        if self.color:
+            parts.append(self.color)
+        return f'{self.product.name} - {" / ".join(parts)}' if parts else self.product.name
+
+
 class Product(models.Model):
     category = models.ForeignKey(
         Category, on_delete=models.CASCADE, related_name='products',
@@ -43,6 +69,8 @@ class Product(models.Model):
         blank=True, null=True
     )
     image = models.ImageField('Imagem', upload_to='products/%Y/%m/')
+    secondary_image = models.ImageField('Imagem Secundária', upload_to='products/%Y/%m/', blank=True,
+        help_text='Mostrada ao passar o mouse sobre o produto')
     qrcode_image = models.ImageField('QR Code', upload_to='qrcodes/', blank=True)
     stock = models.PositiveIntegerField('Estoque', default=0)
     available = models.BooleanField('Disponível', default=True)
@@ -72,6 +100,22 @@ class Product(models.Model):
     @property
     def stock_value(self):
         return (self.purchase_price or 0) * self.stock
+
+    @property
+    def discount_percentage(self):
+        if self.promotional_price and self.price > 0:
+            return int(round((1 - self.promotional_price / self.price) * 100))
+        return 0
+
+    @property
+    def has_variants(self):
+        return self.variants.exists()
+
+    @property
+    def sorted_sizes(self):
+        size_order = {'PP': 0, 'P': 1, 'M': 2, 'G': 3, 'GG': 4, 'XG': 5, 'XXG': 6}
+        variants = self.variants.all()
+        return sorted(variants, key=lambda v: size_order.get(v.size.upper(), 99))
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
@@ -203,6 +247,37 @@ class SiteConfig(models.Model):
         if not self.pk and SiteConfig.objects.exists():
             return
         super().save(*args, **kwargs)
+
+
+class TickerMessage(models.Model):
+    text = models.CharField(
+        'Frase', max_length=200,
+        help_text='Texto exibido no topo do site. Ex: "🔥 Moda masculina com estilo e atitude"'
+    )
+    order = models.PositiveIntegerField('Ordem', default=0)
+    active = models.BooleanField('Ativo', default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Frase do Ticker'
+        verbose_name_plural = 'Frases do Ticker'
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.text
+
+
+class Newsletter(models.Model):
+    email = models.EmailField('E-mail', unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Inscrito na Newsletter'
+        verbose_name_plural = 'Inscritos na Newsletter'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.email
 
 
 class CarouselSettings(models.Model):

@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from catalog.models import Product
+from catalog.models import Product, Variant
 
 
 class Cart(models.Model):
@@ -35,15 +35,22 @@ class CartItem(models.Model):
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, verbose_name='Produto'
     )
+    variant = models.ForeignKey(
+        Variant, on_delete=models.CASCADE, verbose_name='Variação',
+        blank=True, null=True
+    )
     quantity = models.PositiveIntegerField('Quantidade', default=1)
 
     class Meta:
         verbose_name = 'Item do Carrinho'
         verbose_name_plural = 'Itens do Carrinho'
-        unique_together = [['cart', 'product']]
+        unique_together = [['cart', 'product', 'variant']]
 
     def __str__(self):
-        return f'{self.quantity}x {self.product.name}'
+        label = f'{self.product.name}'
+        if self.variant:
+            label += f' ({self.variant})'
+        return f'{self.quantity}x {label}'
 
     @property
     def total(self):

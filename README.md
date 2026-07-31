@@ -70,7 +70,7 @@ docker compose exec web python scripts/seed.py
 - **Loja:** http://localhost:8080
 - **Admin:** http://localhost:8080/admin/
   - Usuário: `admin`
-  - Senha: `admin123`
+   - Senha: definida via variável `ADMIN_PASSWORD` no `.env` (padrão: `admin123`)
 - **Vendas (Balcão):** http://localhost:8080/vendas/
   - Login exclusivo em `/vendas/entrar/` (mesmo usuário/senha do admin)
 - **Estoque:** http://localhost:8080/vendas/estoque/

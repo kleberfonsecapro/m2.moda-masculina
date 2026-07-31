@@ -534,7 +534,7 @@
     <h2 style="justify-content:center">Venda Realizada!</h2>
     <div class="success-details" id="success-details"></div>
     <div class="modal-actions" style="flex-direction:column">
-      <a href="#" class="btn btn-primary btn-block" id="view-order-btn" target="_blank">
+      <a href="#" class="btn btn-primary btn-block" id="view-order-btn" target="_blank" rel="noopener noreferrer">
         <i class="fas fa-file-invoice"></i> Ver Pedido
       </a>
       <button class="btn btn-outline btn-block" id="new-sale-btn">
@@ -546,7 +546,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js" integrity="sha384-BtpfI1RaEH67r6SFt8tRi1x2wcZbsXUanbFmScJEilHlAIDITjtdnge/V7Sgfpgg" crossorigin="anonymous"></script>
 <script>
 (function() {
   const COOKIE_NAME = 'csrftoken';
@@ -744,17 +744,44 @@
       document.getElementById('checkout-modal').classList.remove('open');
 
       const paymentLabels = { cash: 'Dinheiro', card: 'Cartão', pix: 'PIX', other: 'Outro' };
-      let itemsHtml = data.items.map(i =>
-        '<div class="row"><span class="label">' + i.name + ' x' + i.qty + '</span><span class="value">R$ ' + i.total + '</span></div>'
-      ).join('');
+      var detailsEl = document.getElementById('success-details');
+      detailsEl.innerHTML = '';
 
-      document.getElementById('success-details').innerHTML =
-        '<div class="row"><span class="label">Pedido</span><span class="value">#' + data.order_id + '</span></div>' +
-        '<div class="row"><span class="label">Pagamento</span><span class="value">' + (paymentLabels[paymentMethod] || paymentMethod) + '</span></div>' +
-        '<div class="row"><span class="label">Cliente</span><span class="value">' + (customerName || '—') + '</span></div>' +
-        itemsHtml +
-        '<div class="row" style="border-top:1px solid var(--color-gray);padding-top:8px;margin-top:8px;font-size:1.1rem">' +
-        '<span class="label">Total</span><span class="value" style="color:var(--color-accent-text)">R$ ' + data.total + '</span></div>';
+      function addRow(label, value) {
+        var row = document.createElement('div');
+        row.className = 'row';
+        var l = document.createElement('span');
+        l.className = 'label';
+        l.textContent = label;
+        var v = document.createElement('span');
+        v.className = 'value';
+        v.textContent = value;
+        row.appendChild(l);
+        row.appendChild(v);
+        detailsEl.appendChild(row);
+      }
+
+      addRow('Pedido', '#' + data.order_id);
+      addRow('Pagamento', paymentLabels[paymentMethod] || paymentMethod);
+      addRow('Cliente', customerName || '—');
+
+      data.items.forEach(function(i) {
+        addRow(i.name + ' x' + i.qty, 'R$ ' + i.total);
+      });
+
+      var totalRow = document.createElement('div');
+      totalRow.className = 'row';
+      totalRow.style.cssText = 'border-top:1px solid var(--color-gray);padding-top:8px;margin-top:8px;font-size:1.1rem';
+      var totalL = document.createElement('span');
+      totalL.className = 'label';
+      totalL.textContent = 'Total';
+      var totalV = document.createElement('span');
+      totalV.className = 'value';
+      totalV.style.color = 'var(--color-accent-text)';
+      totalV.textContent = 'R$ ' + data.total;
+      totalRow.appendChild(totalL);
+      totalRow.appendChild(totalV);
+      detailsEl.appendChild(totalRow);
 
       document.getElementById('view-order-btn').href = data.redirect;
       document.getElementById('success-modal').classList.add('open');
@@ -810,7 +837,8 @@
 
   function removeItem(itemId) {
     fetch('{% url "cart:cart_remove" 0 %}'.replace('0', itemId), {
-      method: 'GET',
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie(COOKIE_NAME) },
     }).then(() => location.reload());
   }
 })();

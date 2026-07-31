@@ -38,19 +38,19 @@
                 </div>
                 <div class="products-grid">
                     {% for product in products %}
-                    <div class="product-card">
+                    <div class="product-card" data-product-id="{{ product.id }}">
                         <div class="product-image">
                             <a href="{{ product.get_absolute_url }}">
-                                <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                                <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy" class="img-primary">
+                                {% if product.secondary_image %}
+                                <img src="{{ product.secondary_image.url }}" alt="{{ product.name }}" loading="lazy" class="img-secondary">
+                                {% endif %}
                             </a>
-                            {% if product.promotional_price %}
-                                <span class="product-badge">Oferta</span>
+                            {% if not product.available or product.stock < 1 and not product.has_variants %}
+                                <span class="product-badge sold-out">Esgotado</span>
+                            {% elif product.promotional_price %}
+                                <span class="product-badge discount">{{ product.discount_percentage }}% OFF</span>
                             {% endif %}
-                            <div class="product-actions">
-                                <a href="https://wa.me/{{ whatsapp_number }}?text=Ol%C3%A1,%20tenho%20interesse%20no%20produto%20{{ product.name|urlencode }}%20-%20R$%20{{ product.effective_price|floatformat:2|urlencode }}" target="_blank" class="btn-add-cart" style="background:#25D366">
-                                    <i class="fab fa-whatsapp"></i> WhatsApp
-                                </a>
-                            </div>
                         </div>
                         <div class="product-info">
                             <span class="product-category">{{ product.category.name }}</span>
@@ -63,6 +63,23 @@
                                     <span class="price-current">R$ {{ product.price|floatformat:2 }}</span>
                                 {% endif %}
                             </div>
+                            {% if product.has_variants %}
+                            <div class="product-sizes">
+                                {% for v in product.sorted_sizes %}
+                                <button class="size-btn{% if v.stock < 1 %} out-of-stock{% endif %}"
+                                        data-variant-id="{{ v.id }}" data-size="{{ v.size }}"
+                                        data-product-id="{{ product.id }}"
+                                        onclick="event.stopPropagation(); window.selectSize(this)">
+                                    {{ v.size }}
+                                </button>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <button class="btn btn-primary btn-sm btn-buy"
+                                    data-product='{"id":{{ product.id }},"name":"{{ product.name|escapejs }}","image":"{{ product.image.url|escapejs }}","price":"{{ product.effective_price|floatformat:2 }}","has_variants":{{ product.has_variants|lower }},"variants":[{% for v in product.sorted_sizes %}{"id":{{ v.id }},"size":"{{ v.size|escapejs }}","stock":{{ v.stock }}}{% if not forloop.last %},{% endif %}{% endfor %}]}'
+                                    onclick="openQuickModal(this)">
+                                <i class="fas fa-shopping-bag"></i> Comprar
+                            </button>
                         </div>
                     </div>
                     {% empty %}

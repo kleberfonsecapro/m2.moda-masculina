@@ -11,7 +11,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'm2shop.settings')
 django.setup()
 
-from catalog.models import Category, Product, CarouselSlide, CarouselSettings
+from catalog.models import Category, Product, Variant, FeaturedProduct, CarouselSlide, CarouselSettings, SiteConfig, TickerMessage
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q
@@ -29,8 +29,11 @@ def download_image(url):
 
 def create_superuser():
     if not User.objects.filter(username='admin').exists():
-        User.objects.create_superuser('admin', 'admin@m2moda.com.br', 'admin123')
-        print("  Superusuário 'admin' criado (senha: admin123)")
+        password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+        if password == 'admin123':
+            print("  ⚠️  AVISO: Usando senha padrão 'admin123' para superusuário. Defina ADMIN_PASSWORD no .env")
+        User.objects.create_superuser('admin', 'admin@m2moda.com.br', password)
+        print("  Superusuário 'admin' criado")
     else:
         print("  Superusuário 'admin' já existe")
 
@@ -353,6 +356,61 @@ def seed():
     else:
         print("  Configurações do Carrossel já existem")
 
+    # Criar variações (tamanhos) para cada produto
+    sizes_map = {
+        'Camisas Peruanas': ['P', 'M', 'G', 'GG'],
+        'Camisetas Oversized': ['P', 'M', 'G', 'GG'],
+        'Camisas de Time': ['P', 'M', 'G', 'GG'],
+        'Joggers': ['P', 'M', 'G', 'GG'],
+        'Cargo Pants': ['P', 'M', 'G', 'GG'],
+        'Jaquetas': ['P', 'M', 'G', 'GG'],
+        'Calçados': ['38', '39', '40', '41', '42'],
+        'Acessórios': ['Único'],
+    }
+    for product in Product.objects.all():
+        sizes = sizes_map.get(product.category.name, ['P', 'M', 'G'])
+        for i, size in enumerate(sizes):
+            stock = max(0, product.stock // len(sizes) + (i < product.stock % len(sizes)))
+            Variant.objects.get_or_create(
+                product=product,
+                size=size,
+                defaults={'stock': stock, 'order': i, 'sku': f'{product.code}-{size}'},
+            )
+        print(f'  Variantes criadas para {product.name}')
+
+    # Criar Produtos em Destaque
+    for i, product in enumerate(Product.objects.filter(featured=True)):
+        FeaturedProduct.objects.get_or_create(
+            product=product,
+            defaults={'label': '', 'order': i, 'active': True},
+        )
+    print('  Produtos em destaque criados')
+
+    # Criar Configuração do Site (padrão)
+    if not SiteConfig.objects.exists():
+        SiteConfig.objects.create(
+            whatsapp_number='5511999999999',
+            instagram='https://instagram.com/m.2modamasculina',
+            facebook='https://facebook.com/m2modamasculina',
+            email='contato@m2moda.com.br',
+        )
+        print('  SiteConfig criado')
+    else:
+        print('  SiteConfig já existe')
+
+    # Frases do Ticker (barra de avisos do topo)
+    if not TickerMessage.objects.exists():
+        default_phrases = [
+            '🔥 Moda masculina com estilo e atitude',
+            '🚚 Frete grátis acima de R$ 199',
+            '💳 Parcele em até 3x sem juros',
+        ]
+        for order, phrase in enumerate(default_phrases):
+            TickerMessage.objects.create(text=phrase, order=order, active=True)
+        print('  Frases do Ticker criadas')
+    else:
+        print('  Frases do Ticker já existem')
+
     # Gerar códigos e QR Codes para produtos existentes
     pending = Product.objects.filter(
         Q(code__isnull=True) | Q(code='') | Q(qrcode_image='')
@@ -365,7 +423,7 @@ def seed():
 
     print("\nBanco populado com sucesso!")
     print("\nCredenciais de acesso:")
-    print("  Admin:   usuario=admin / senha=admin123")
+    print("  Admin:   usuario=admin (senha definida via ADMIN_PASSWORD ou 'admin123')")
     print("  URL Admin: http://localhost:8000/admin/")
 
 

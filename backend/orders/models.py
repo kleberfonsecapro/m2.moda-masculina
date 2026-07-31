@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from catalog.models import Product
+from catalog.models import Product, Variant
 
 
 class Order(models.Model):
@@ -22,7 +22,8 @@ class Order(models.Model):
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
-        related_name='orders', verbose_name='Usuário'
+        related_name='orders', verbose_name='Usuário',
+        blank=True, null=True
     )
     full_name = models.CharField('Nome Completo', max_length=100)
     email = models.EmailField('E-mail')
@@ -61,6 +62,10 @@ class OrderItem(models.Model):
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, verbose_name='Produto'
     )
+    variant = models.ForeignKey(
+        Variant, on_delete=models.CASCADE, verbose_name='Variação',
+        blank=True, null=True
+    )
     price = models.DecimalField('Preço', max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField('Quantidade', default=1)
 
@@ -69,7 +74,10 @@ class OrderItem(models.Model):
         verbose_name_plural = 'Itens do Pedido'
 
     def __str__(self):
-        return f'{self.quantity}x {self.product.name}'
+        label = f'{self.product.name}'
+        if self.variant:
+            label += f' ({self.variant})'
+        return f'{self.quantity}x {label}'
 
     @property
     def total(self):
