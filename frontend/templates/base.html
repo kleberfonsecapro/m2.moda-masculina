@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
+{% load static_versioned %}
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
@@ -11,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static_versioned 'css/style.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -137,7 +138,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2026 M2 Moda Masculina. Todos os direitos reservados.</p>
+                <p>&copy; 2026 KFS Tecnologias Web. Todos os direitos reservados.</p>
             </div>
         </div>
     </footer>
