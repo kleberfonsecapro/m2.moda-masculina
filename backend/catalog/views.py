@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
@@ -11,7 +12,8 @@ from django_ratelimit.decorators import ratelimit
 from orders.forms import OrderCreateForm
 from orders.models import Order, OrderItem
 from cart.models import Cart, CartItem
-from .models import Category, Product, Variant, FeaturedProduct, CarouselSlide, CarouselSettings, Newsletter
+from shipping.services import quote, lookup_cep
+from .models import Category, Product, Variant, FeaturedProduct, Newsletter
 
 
 def home(request):
@@ -22,14 +24,10 @@ def home(request):
     recent_products = Product.objects.filter(
         available=True
     ).prefetch_related('variants').order_by('-created_at')[:8]
-    slides = CarouselSlide.objects.filter(active=True).order_by('order')
-    carousel_settings = CarouselSettings.objects.first()
     return render(request, 'catalog/home.html', {
         'featured_items': featured_items,
         'categories': categories,
         'recent_products': recent_products,
-        'slides': slides,
-        'carousel_settings': carousel_settings,
     })
 
 
@@ -145,6 +143,7 @@ def sales_checkout(request):
 
     customer_name = data.get('customer_name', '').strip() or request.user.get_full_name() or request.user.username
     customer_phone = data.get('customer_phone', '').strip()
+    customer_cpf = data.get('customer_cpf', '').strip()[:14]
 
     with transaction.atomic():
         product_ids = [item.product_id for item in cart.items.all()]
@@ -155,6 +154,7 @@ def sales_checkout(request):
             full_name=customer_name,
             email=request.user.email,
             phone=customer_phone,
+            cpf=customer_cpf,
             address='Venda presencial',
             city='',
             state='',
@@ -224,6 +224,40 @@ def stock_page(request):
     })
 
 
+@login_required(login_url='/vendas/entrar/')
+@require_POST
+def sales_update_item(request, item_id):
+    cart_obj, _ = Cart.objects.get_or_create(user=request.user)
+    cart_item = get_object_or_404(CartItem, id=item_id, cart=cart_obj)
+
+    try:
+        quantity = int(request.POST.get('quantity', ''))
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Quantidade inválida'}, status=400)
+
+    if quantity < 1:
+        cart_item.delete()
+    else:
+        stock_source = cart_item.variant if cart_item.variant else cart_item.product
+        if quantity > stock_source.stock:
+            return JsonResponse({
+                'error': f'Estoque insuficiente. Disponível: {stock_source.stock}',
+            }, status=400)
+        cart_item.quantity = quantity
+        cart_item.save()
+
+    return JsonResponse({'success': True})
+
+
+@login_required(login_url='/vendas/entrar/')
+@require_POST
+def sales_remove_item(request, item_id):
+    cart_obj, _ = Cart.objects.get_or_create(user=request.user)
+    cart_item = get_object_or_404(CartItem, id=item_id, cart=cart_obj)
+    cart_item.delete()
+    return JsonResponse({'success': True})
+
+
 def product_search(request):
     q = request.GET.get('q', '').strip()
     if len(q) < 2:
@@ -266,6 +300,12 @@ def product_search(request):
 
 def _cart_item_key(product_id, variant_id=None):
     return f'{product_id}-{variant_id or ""}'
+
+
+@require_POST
+def _clear_shipping(request):
+    request.session.pop('shipping', None)
+    request.session.modified = True
 
 
 @require_POST
@@ -322,6 +362,8 @@ def add_to_cart(request):
     session['cart'] = cart
     session.modified = True
 
+    _clear_shipping(request)
+
     return JsonResponse({
         'success': True,
         'cart_count': sum(i['quantity'] for i in cart),
@@ -360,6 +402,8 @@ def update_cart(request):
     session['cart'] = cart
     session.modified = True
 
+    _clear_shipping(request)
+
     return JsonResponse({
         'success': True,
         'cart_count': sum(i['quantity'] for i in cart),
@@ -369,19 +413,51 @@ def update_cart(request):
 def cart_page(request):
     items = _get_cart_items(request)
     total = _get_cart_total(request)
-    return render(request, 'catalog/cart.html', {
+    shipping = request.session.get('shipping')
+    context = {
         'cart_items': items,
         'cart_total': total,
+        'shipping': shipping,
+    }
+    if shipping:
+        context['shipping_total'] = total + Decimal(shipping.get('value', '0'))
+    return render(request, 'catalog/cart.html', context)
+
+
+@require_POST
+def select_shipping(request):
+    try:
+        data = json.loads(request.body)
+        cep = str(data.get('cep', '')).replace('-', '').strip()
+        method = str(data.get('method', '')).strip()
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({'error': 'Dados inválidos'}, status=400)
+
+    if len(cep) != 8 or not cep.isdigit():
+        return JsonResponse({'error': 'CEP inválido'}, status=400)
+
+    options = quote(cep, subtotal=_get_cart_total(request))
+    option = next((o for o in options if o['name'] == method), None)
+    if not option:
+        return JsonResponse({'error': 'Método de envio inválido'}, status=400)
+
+    request.session['shipping'] = {
+        'cep': cep,
+        'method': option['name'],
+        'value': str(option['value']),
+    }
+    request.session.modified = True
+
+    return JsonResponse({
+        'success': True,
+        'shipping': request.session['shipping'],
     })
 
 
 def store_checkout(request):
-    if not request.user.is_authenticated:
-        messages.info(request, 'Faça login para finalizar seu pedido.')
-        return redirect(f"{reverse('accounts:login')}?next={reverse('catalog:store_checkout')}")
-
     items = _get_cart_items(request)
     total = _get_cart_total(request)
+    shipping = request.session.get('shipping')
 
     if not items:
         messages.info(request, 'Seu carrinho está vazio.')
@@ -394,23 +470,34 @@ def store_checkout(request):
                 product_ids = [item['product'].id for item in items]
                 locked_products = {p.id: p for p in Product.objects.select_for_update().filter(id__in=product_ids)}
 
-                order = form.save(commit=False)
-                order.user = request.user
-                order.save()
-
                 for item_data in items:
-                    product_id = item_data['product'].id
-                    product = locked_products[product_id]
+                    product = locked_products[item_data['product'].id]
                     variant = item_data['variant']
                     quantity = item_data['quantity']
-
                     stock_source = variant if variant else product
                     if quantity > stock_source.stock:
+                        transaction.set_rollback(True)
                         messages.error(
                             request,
                             f'Estoque insuficiente para {product.name}. Disponível: {stock_source.stock}',
                         )
                         return redirect('catalog:cart_page')
+
+                order = form.save(commit=False)
+                order.user = None
+
+                shipping_data = request.session.get('shipping')
+                if shipping_data:
+                    order.shipping_method = shipping_data.get('method', '')
+                    order.shipping_cost = Decimal(str(shipping_data.get('value', '0')))
+
+                order.save()
+
+                for item_data in items:
+                    product = locked_products[item_data['product'].id]
+                    variant = item_data['variant']
+                    quantity = item_data['quantity']
+                    stock_source = variant if variant else product
 
                     OrderItem.objects.create(
                         order=order,
@@ -424,21 +511,48 @@ def store_checkout(request):
                     stock_source.save(update_fields=['stock'])
 
             request.session['cart'] = []
+            request.session.pop('shipping', None)
             request.session.modified = True
+
+            recent_order_ids = request.session.get('recent_order_ids', [])
+            recent_order_ids.append(order.id)
+            request.session['recent_order_ids'] = recent_order_ids[-10:]
+            request.session.modified = True
+
             messages.success(request, 'Pedido realizado com sucesso!')
-            return redirect('orders:order_detail', order_id=order.id)
+            return redirect('catalog:order_success', order_id=order.id)
     else:
-        initial = {
-            'full_name': f'{request.user.first_name} {request.user.last_name}',
-            'email': request.user.email,
-        }
+        initial = {}
+        if shipping:
+            address_data = lookup_cep(shipping.get('cep', ''))
+            if address_data:
+                initial = {
+                    'zip_code': shipping.get('cep', ''),
+                    'address': address_data.get('logradouro', ''),
+                    'city': address_data.get('localidade', ''),
+                    'state': address_data.get('uf', ''),
+                }
         form = OrderCreateForm(initial=initial)
 
-    return render(request, 'catalog/checkout.html', {
+    context = {
         'form': form,
         'cart_items': items,
         'cart_total': total,
-    })
+        'shipping': shipping,
+    }
+    if shipping:
+        context['shipping_total'] = total + Decimal(shipping.get('value', '0'))
+    return render(request, 'catalog/checkout.html', context)
+
+
+def order_success(request, order_id):
+    recent_order_ids = request.session.get('recent_order_ids', [])
+    if order_id not in recent_order_ids:
+        messages.info(request, 'Não foi possível exibir o pedido. Use o e-mail de confirmação para acompanhá-lo.')
+        return redirect('catalog:product_list')
+
+    order = get_object_or_404(Order, id=order_id)
+    return render(request, 'catalog/order_success.html', {'order': order})
 
 
 @ratelimit(key='ip', rate='5/m', method='POST', block=True)

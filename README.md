@@ -26,7 +26,7 @@ m2-moda-masculina/
 │   ├── m2shop/           # Projeto principal
 │   ├── catalog/          # Catálogo de produtos
 │   ├── cart/             # Carrinho de compras
-│   ├── accounts/         # Autenticação de usuários
+│   ├── accounts/         # Logout (não há mais contas de cliente)
 │   ├── orders/           # Pedidos
 │   ├── scripts/          # Scripts de seed
 │   └── manage.py
@@ -75,6 +75,7 @@ docker compose exec web python scripts/seed.py
    - Senha: definida via variável `ADMIN_PASSWORD` no `.env` (padrão: `admin123`)
 - **Vendas (Balcão):** http://localhost:8080/vendas/
   - Login exclusivo em `/vendas/entrar/` (mesmo usuário/senha do admin)
+  - É a **única** porta de autenticação da aplicação — o site público não tem login/registro de cliente
 - **Estoque:** http://localhost:8080/vendas/estoque/
 
 ## Comandos Úteis
@@ -104,14 +105,14 @@ docker compose ps
 
 ## Testes
 
-137 testes automatizados (unitários + integração) divididos entre os 4 apps (catalog, cart, orders, accounts).
+154 testes automatizados (unitários + integração) divididos entre os 5 apps (catalog, cart, orders, accounts, shipping).
 
 ```bash
 # Rodar todos os testes
 docker compose run --rm --no-deps web python manage.py test
 
 # Rodar testes de um app específico
-docker compose run --rm --no-deps web python manage.py test catalog
+docker compose run --rm --no-deps web python manage.py test shipping
 
 # Rodar com verbose
 docker compose run --rm --no-deps web python manage.py test catalog cart orders accounts --verbosity=2
@@ -134,8 +135,8 @@ Os arquivos de teste são excluídos da imagem Docker via `.dockerignore` — n�
 ### Preparação do ambiente
 
 ```bash
-# 1. Crie o .env a partir do template (preencha SECRET_KEY, ADMIN_PASSWORD,
-#    senhas do MySQL e, em produção, o bloco de SMTP)
+# 1. Crie o .env a partir do template (preencha SECRET_KEY, ADMIN_PASSWORD e
+#    senhas do MySQL; o bloco de SMTP é opcional — não há mais email de cliente)
 cp .env.example .env
 
 # 2. Em produção SEMPRE: DEBUG=False e ALLOWED_HOSTS/CSRF_TRUSTED_ORIGINS/SITE_URL
@@ -168,21 +169,36 @@ docker compose -f traefik-global/docker-compose.yml up -d
 
 ### Email (verificação e password reset)
 
-- Sem valores SMTP, o Django usa o **console backend** (imprime no log do container) — **não serve para produção**.
-- Em produção configure `EMAIL_BACKEND=smtp`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER` e `EMAIL_HOST_PASSWORD` no `.env`.
-- Links de email usam `SITE_URL` (ex: `https://m2moda.com.br`).
+O site público é **100% anônimo** — não há contas de cliente, registro, verificação de e-mail nem password reset. Os usuários existem apenas para acesso ao admin e ao balcão de vendas (criados via `createsuperuser` ou pelo seed). Por isso, configurar SMTP no `.env` é **opcional**: sem valores, o Django usa o backend de console (imprime no log do container).
+
+O `ADMIN_PASSWORD` do seed continua sendo o único dado sensível de usuário a definir em produção.
 
 ## Funcionalidades
 
 - Catálogo com categorias e produtos
-- Carrossel na página inicial
-- Carrinho de compras
-- Cadastro e login de usuários
-- Finalização de pedidos
+- Carrinho de compras em sessão (sem login)
+- Checkout anônimo com confirmação de pedido
+- Calculadora de frete por CEP no carrinho (tabela própria com lógica de peso cúbico dos Correios)
 - Painel administrativo completo (Django Admin)
 - Ticker de avisos ("bolsa de valores") no topo — gerido no admin (modelo `TickerMessage`)
 - Design responsivo e moderno
 - 15 produtos de exemplo em 8 categorias
+
+### Calculadora de Frete
+
+**URL:** widget no carrinho (`catalog/cart.html`)
+
+O cliente digita o CEP no carrinho e vê as opções de envio (ex: Sedex, PAC) com o valor; escolhe uma delas e o frete é aplicado ao total e persistido na sessão. No checkout, o CEP informado **preenche o endereço automaticamente** (logradouro, cidade e UF via ViaCEP), e o método/valor do frete vão para o pedido. O prazo **não** é exibido (evita promessa de dias que depende dos Correios).
+
+- **Validação de CEP** via ViaCEP (gratuito, sem chave) — CEP inexistente é rejeitado com mensagem amigável
+- **Cálculo próprio** que replica a lógica dos Correios: usa o maior entre peso real e peso cúbico (`comprimento × largura × altura ÷ 6000`), arredondado para cima
+- **Regiões de entrega** (`ShippingRegion`) — faixas de CEP de destino com fator de acréscimo (ex: Capital = ×1,00; Norte = ×1,25)
+- **Tarifas** (`ShippingRate`) — valor base por serviço e faixa de peso, cadastradas no admin (valores de referência dos Correios que você mantém atualizados)
+- **Frete grátis** configurável acima de um subtotal (`ShippingConfig.frete_gratis_acima_de`)
+- **Configuração** (`ShippingConfig`, singleton no admin) — CEP de origem, embalagem padrão (peso/dimensões) e regras
+- **API:** `POST /frete/calcular/` (JSON `{cep, subtotal?}`) → `{success, address, options: [{name, value}]}`; `POST /frete/cep/` (JSON `{cep}`) → dados do endereço; `POST /carrinho/frete/selecionar/` (JSON `{cep, method}`) → persiste o frete na sessão
+
+> **Observação:** a tarifa oficial dos Correios é uma tabela proprietária. Esta calculadora a aproxima via tarifas configuráveis no admin — mantenha-as atualizadas para valores fiéis.
 
 ### Código Único e QR Code
 

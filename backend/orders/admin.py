@@ -11,14 +11,15 @@ class OrderItemInline(admin.TabularInline):
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = [
-        'id', 'user', 'full_name', 'status', 'total',
+        'id', 'user', 'full_name', 'cpf', 'status', 'total',
         'created_at', 'updated_at'
     ]
     list_filter = ['status', 'created_at']
     list_editable = ['status']
-    search_fields = ['full_name', 'email', 'user__username']
+    search_fields = ['full_name', 'email', 'cpf', 'user__username']
     inlines = [OrderItemInline]
-    readonly_fields = ['full_name', 'email', 'phone', 'address', 'city', 'state', 'zip_code']
+    readonly_fields = ['full_name', 'email', 'phone', 'cpf', 'address', 'city', 'state', 'zip_code',
+                       'shipping_method', 'shipping_cost']
 
     def has_add_permission(self, request):
         return False

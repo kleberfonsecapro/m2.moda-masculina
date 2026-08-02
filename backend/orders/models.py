@@ -28,10 +28,13 @@ class Order(models.Model):
     full_name = models.CharField('Nome Completo', max_length=100)
     email = models.EmailField('E-mail')
     phone = models.CharField('Telefone', max_length=20)
+    cpf = models.CharField('CPF', max_length=14, blank=True, default='')
     address = models.CharField('Endereço', max_length=255)
     city = models.CharField('Cidade', max_length=100)
     state = models.CharField('Estado', max_length=50)
     zip_code = models.CharField('CEP', max_length=10)
+    shipping_method = models.CharField('Método de Envio', max_length=100, blank=True, default='')
+    shipping_cost = models.DecimalField('Custo do Frete', max_digits=10, decimal_places=2, default=0)
     payment_method = models.CharField(
         'Forma de Pagamento', max_length=20, choices=PAYMENT_CHOICES, default='cash'
     )
@@ -51,7 +54,8 @@ class Order(models.Model):
 
     @property
     def total(self):
-        return sum(item.total for item in self.items.all())
+        items_total = sum(item.total for item in self.items.all())
+        return items_total + self.shipping_cost
 
 
 class OrderItem(models.Model):

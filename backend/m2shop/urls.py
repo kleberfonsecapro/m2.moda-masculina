@@ -10,9 +10,9 @@ admin.site.index_title = 'Painel de Controle'
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('catalog.urls', namespace='catalog')),
-    path('cart/', include('cart.urls', namespace='cart')),
     path('accounts/', include('accounts.urls', namespace='accounts')),
     path('orders/', include('orders.urls', namespace='orders')),
+    path('frete/', include('shipping.urls', namespace='shipping')),
 ]
 
 if settings.DEBUG:

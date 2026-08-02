@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     'cart',
     'accounts.apps.AccountsConfig',
     'orders',
+    'shipping',
 ]
 
 MIDDLEWARE = [
@@ -118,8 +119,8 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_URL = 'accounts:login'
-LOGIN_REDIRECT_URL = 'catalog:product_list'
+LOGIN_URL = 'catalog:sales_login'
+LOGIN_REDIRECT_URL = 'catalog:sales_page'
 LOGOUT_REDIRECT_URL = 'catalog:product_list'
 SITE_URL = config('SITE_URL', default='http://localhost:8080')
 

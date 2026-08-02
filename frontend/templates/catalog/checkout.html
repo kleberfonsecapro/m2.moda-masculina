@@ -42,12 +42,78 @@
                     <span>R$ {{ item.total|floatformat:2 }}</span>
                 </div>
                 {% endfor %}
+                <div class="checkout-item">
+                    <span>Frete</span>
+                    <span>{% if shipping %}{% if shipping.value == "0.00" %}Grátis{% else %}R$ {{ shipping.value }}{% endif %}{% else %}Calcular no carrinho{% endif %}</span>
+                </div>
                 <div class="checkout-total">
                     <span>Total</span>
-                    <span>R$ {{ cart_total|floatformat:2 }}</span>
+                    <span>R$ {{ shipping_total|default:cart_total|floatformat:2 }}</span>
                 </div>
             </div>
         </div>
     </div>
 </section>
+
+<script>
+function getCookie(name) {
+    var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? decodeURIComponent(match[2]) : null;
+}
+
+function maskCep(value) {
+    var v = (value || '').replace(/\D/g, '').slice(0, 8);
+    if (v.length > 5) {
+        v = v.slice(0, 5) + '-' + v.slice(5);
+    }
+    return v;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var cepInput = document.getElementById('id_zip_code');
+    var addressInput = document.getElementById('id_address');
+    var cityInput = document.getElementById('id_city');
+    var stateInput = document.getElementById('id_state');
+
+    if (!cepInput) return;
+
+    cepInput.addEventListener('input', function() {
+        this.value = maskCep(this.value);
+    });
+
+    function fillAddress(data) {
+        if (!data.success) return;
+        if (!addressInput.value.trim()) {
+            addressInput.value = data.logradouro || '';
+        }
+        if (!cityInput.value.trim()) {
+            cityInput.value = data.localidade || '';
+        }
+        if (!stateInput.value.trim()) {
+            stateInput.value = data.uf || '';
+        }
+    }
+
+    function lookupCep() {
+        var cep = cepInput.value.replace(/\D/g, '');
+        if (cep.length !== 8) return;
+        fetch('{% url "shipping:cep_lookup" %}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({cep: cep}),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) { fillAddress(data); })
+        .catch(function() {});
+    }
+
+    cepInput.addEventListener('blur', lookupCep);
+    cepInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            lookupCep();
+        }
+    });
+});
+</script>
 {% endblock %}

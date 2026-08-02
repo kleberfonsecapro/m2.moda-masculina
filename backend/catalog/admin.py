@@ -1,49 +1,7 @@
 from django.contrib import admin
 from django import forms
 from django.utils.html import format_html
-from .models import Category, Product, Variant, FeaturedProduct, CarouselSlide, CarouselSettings, SiteConfig, TickerMessage, Newsletter
-
-
-class CarouselSettingsForm(forms.ModelForm):
-    class Meta:
-        model = CarouselSettings
-        fields = '__all__'
-
-
-@admin.register(CarouselSlide)
-class CarouselSlideAdmin(admin.ModelAdmin):
-    list_display = ['order', 'title', 'label', 'active', 'image_preview']
-    list_editable = ['active']
-    list_filter = ['active']
-    ordering = ['order']
-    search_fields = ['title', 'label', 'description']
-    list_display_links = ['title']
-
-    fieldsets = [
-        ('Conteúdo', {
-            'fields': ['label', 'title', 'title_highlight', 'description'],
-        }),
-        ('Imagem e Links', {
-            'fields': ['image', 'image_url', 'link_url', 'link_text'],
-        }),
-        ('Configurações', {
-            'fields': ['order', 'active'],
-        }),
-    ]
-
-    def image_preview(self, obj):
-        src = None
-        if obj.image:
-            src = obj.image.url
-        elif obj.image_url:
-            src = obj.image_url
-        if src:
-            return format_html(
-                '<img src="{}" style="max-height:50px;border-radius:4px" />',
-                src
-            )
-        return '-'
-    image_preview.short_description = 'Prévia'
+from .models import Category, Product, Variant, FeaturedProduct, SiteConfig, TickerMessage, Newsletter
 
 
 @admin.register(FeaturedProduct)
@@ -81,19 +39,6 @@ class FeaturedProductAdmin(admin.ModelAdmin):
             )
         return '-'
     image_preview.short_description = 'Prévia'
-
-
-@admin.register(CarouselSettings)
-class CarouselSettingsAdmin(admin.ModelAdmin):
-    form = CarouselSettingsForm
-
-    def has_add_permission(self, request):
-        if CarouselSettings.objects.exists():
-            return False
-        return True
-
-    def has_delete_permission(self, request, obj=None):
-        return False
 
 
 @admin.register(SiteConfig)

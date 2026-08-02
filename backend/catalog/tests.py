@@ -1,8 +1,13 @@
+import json
 from decimal import Decimal
 from io import BytesIO
+from unittest import mock
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
-from .models import Category, Product, Variant, Newsletter, SiteConfig, CarouselSettings, TickerMessage
+from cart.models import CartItem
+from orders.models import Order, OrderItem
+from shipping.models import ShippingConfig, ShippingRegion, ShippingRate
+from .models import Category, Product, Variant, Newsletter, SiteConfig, TickerMessage
 
 
 def get_test_image():
@@ -378,18 +383,6 @@ class TickerContextProcessorTest(TestCase):
         self.assertContains(response, 'Moda masculina com estilo e atitude')
 
 
-class CarouselSettingsTest(TestCase):
-    def test_carousel_settings_is_singleton(self):
-        CarouselSettings.objects.create(autoplay_interval=3000)
-        CarouselSettings.objects.create(autoplay_interval=5000)
-        self.assertEqual(CarouselSettings.objects.count(), 1)
-
-    def test_carousel_settings_defaults(self):
-        settings = CarouselSettings.objects.create()
-        self.assertEqual(settings.autoplay_interval, 5000)
-        self.assertEqual(settings.transition_speed, 800)
-
-
 class SalesPageTest(TestCase):
     def setUp(self):
         from django.contrib.auth.models import User
@@ -478,6 +471,43 @@ class SalesPageTest(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock, 7)
 
+    def test_sales_checkout_saves_customer_cpf(self):
+        self.client.login(username='vendedor', password='123')
+        self.client.post(
+            '/vendas/adicionar/',
+            {'code': self.product.code, 'quantity': 1},
+            content_type='application/json',
+        )
+        response = self.client.post(
+            '/vendas/finalizar/',
+            {
+                'payment_method': 'cash',
+                'customer_name': 'João',
+                'customer_phone': '11999999999',
+                'customer_cpf': '123.456.789-00',
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        order = Order.objects.get()
+        self.assertEqual(order.cpf, '123.456.789-00')
+
+    def test_sales_checkout_cpf_is_optional(self):
+        self.client.login(username='vendedor', password='123')
+        self.client.post(
+            '/vendas/adicionar/',
+            {'code': self.product.code, 'quantity': 1},
+            content_type='application/json',
+        )
+        response = self.client.post(
+            '/vendas/finalizar/',
+            {'payment_method': 'cash', 'customer_name': 'João'},
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        order = Order.objects.get()
+        self.assertEqual(order.cpf, '')
+
     def test_sales_checkout_with_invalid_payment(self):
         self.client.login(username='vendedor', password='123')
         self.client.post(
@@ -501,6 +531,81 @@ class SalesPageTest(TestCase):
         self.assertEqual(response.status_code, 400)
         data = response.json()
         self.assertIn('error', data)
+
+    def test_sales_update_item_quantity(self):
+        self.client.login(username='vendedor', password='123')
+        self.client.post(
+            '/vendas/adicionar/',
+            {'code': self.product.code, 'quantity': 2},
+            content_type='application/json',
+        )
+        item = CartItem.objects.get()
+        response = self.client.post(
+            f'/vendas/item/{item.id}/atualizar/', {'quantity': 5},
+        )
+        self.assertEqual(response.status_code, 200)
+        item.refresh_from_db()
+        self.assertEqual(item.quantity, 5)
+
+    def test_sales_update_item_exceeds_stock(self):
+        self.client.login(username='vendedor', password='123')
+        self.product.stock = 3
+        self.product.save()
+        self.client.post(
+            '/vendas/adicionar/',
+            {'code': self.product.code, 'quantity': 1},
+            content_type='application/json',
+        )
+        item = CartItem.objects.get()
+        response = self.client.post(
+            f'/vendas/item/{item.id}/atualizar/', {'quantity': 5},
+        )
+        self.assertEqual(response.status_code, 400)
+        item.refresh_from_db()
+        self.assertEqual(item.quantity, 1)
+
+    def test_sales_update_item_zero_removes_it(self):
+        self.client.login(username='vendedor', password='123')
+        self.client.post(
+            '/vendas/adicionar/',
+            {'code': self.product.code, 'quantity': 2},
+            content_type='application/json',
+        )
+        item = CartItem.objects.get()
+        response = self.client.post(
+            f'/vendas/item/{item.id}/atualizar/', {'quantity': 0},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(CartItem.objects.count(), 0)
+
+    def test_sales_update_item_invalid_quantity(self):
+        self.client.login(username='vendedor', password='123')
+        self.client.post(
+            '/vendas/adicionar/',
+            {'code': self.product.code, 'quantity': 1},
+            content_type='application/json',
+        )
+        item = CartItem.objects.get()
+        response = self.client.post(
+            f'/vendas/item/{item.id}/atualizar/', {'quantity': 'abc'},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_sales_remove_item(self):
+        self.client.login(username='vendedor', password='123')
+        self.client.post(
+            '/vendas/adicionar/',
+            {'code': self.product.code, 'quantity': 1},
+            content_type='application/json',
+        )
+        item = CartItem.objects.get()
+        response = self.client.post(f'/vendas/item/{item.id}/remover/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(CartItem.objects.count(), 0)
+
+    def test_sales_update_item_requires_auth(self):
+        response = self.client.post('/vendas/item/1/atualizar/', {'quantity': 1})
+        self.assertEqual(response.status_code, 302)
 
 
 class StoreCartTest(TestCase):
@@ -637,3 +742,242 @@ class StoreCartTest(TestCase):
         response = self.client.get('/carrinho/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Camisa Polo')
+
+
+class StoreCheckoutTest(TestCase):
+    def setUp(self):
+        category = Category.objects.create(name='Roupas', slug='roupas')
+        self.product = Product.objects.create(
+            category=category, name='Camisa Polo', slug='camisa-polo',
+            description='Desc', price=Decimal('100.00'),
+            stock=10, available=True, image=get_test_image(),
+        )
+        self.add_to_cart()
+
+    def add_to_cart(self):
+        return self.client.post(
+            '/carrinho/adicionar/',
+            {'product_id': self.product.id, 'quantity': 2},
+            content_type='application/json',
+        )
+
+    def post_checkout(self, **overrides):
+        payload = {
+            'full_name': 'Cliente Anônimo',
+            'email': 'cliente@email.com',
+            'phone': '11999999999',
+            'address': 'Rua A, 123',
+            'city': 'São Paulo',
+            'state': 'SP',
+            'zip_code': '01001-001',
+        }
+        payload.update(overrides)
+        return self.client.post('/checkout/', payload)
+
+    def test_checkout_page_loads_without_login(self):
+        response = self.client.get('/checkout/')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'catalog/checkout.html')
+
+    def test_checkout_empty_cart_redirects(self):
+        response = self.client.post('/carrinho/atualizar/', {
+            'key': f'{self.product.id}-', 'action': 'remove',
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        response = self.client.get('/checkout/')
+        self.assertRedirects(response, '/carrinho/')
+
+    def test_anonymous_checkout_creates_order_without_user(self):
+        response = self.post_checkout()
+        self.assertEqual(response.status_code, 302)
+        order = Order.objects.get()
+        self.assertIsNone(order.user)
+        self.assertEqual(order.full_name, 'Cliente Anônimo')
+
+    def test_anonymous_checkout_creates_order_items_and_reduces_stock(self):
+        self.post_checkout()
+        order = Order.objects.get()
+        self.assertEqual(order.items.count(), 1)
+        item = order.items.get()
+        self.assertEqual(item.quantity, 2)
+        self.assertEqual(item.price, Decimal('100.00'))
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 8)
+
+    def test_anonymous_checkout_empties_session_cart(self):
+        self.post_checkout()
+        response = self.client.get('/carrinho/')
+        self.assertContains(response, 'Seu carrinho está vazio')
+
+    def test_anonymous_checkout_redirects_to_success_page(self):
+        response = self.post_checkout()
+        order = Order.objects.get()
+        self.assertRedirects(response, f'/checkout/sucesso/{order.id}/')
+
+    def test_order_success_shows_order_for_recent_session(self):
+        self.post_checkout()
+        order = Order.objects.get()
+        response = self.client.get(f'/checkout/sucesso/{order.id}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'catalog/order_success.html')
+        self.assertContains(response, f'#{order.id}')
+
+    def test_order_success_blocks_foreign_order_ids(self):
+        self.post_checkout()
+        order = Order.objects.get()
+        session = self.client.session
+        session.flush()
+        session.save()
+        response = self.client.get(f'/checkout/sucesso/{order.id}/')
+        self.assertRedirects(response, '/produtos/')
+
+    def test_checkout_rejects_quantity_above_stock(self):
+        self.product.stock = 1
+        self.product.save()
+        response = self.post_checkout()
+        self.assertRedirects(response, '/carrinho/')
+        self.assertEqual(Order.objects.count(), 0)
+
+
+class CartShippingTest(TestCase):
+    def setUp(self):
+        category = Category.objects.create(name='Roupas', slug='roupas')
+        self.product = Product.objects.create(
+            category=category, name='Camisa Polo', slug='camisa-polo',
+            description='Desc', price=Decimal('100.00'),
+            stock=10, available=True, image=get_test_image(),
+        )
+        ShippingConfig.objects.create(cep_origem='01001000')
+        ShippingRegion.objects.create(
+            nome='Todo Brasil', cep_inicio='00000000', cep_fim='99999999', fator=Decimal('1.00')
+        )
+        ShippingRate.objects.create(nome='PAC', peso_min_kg=0, peso_max_kg=1, valor_base=Decimal('20.00'))
+        ShippingRate.objects.create(nome='Sedex', peso_min_kg=0, peso_max_kg=1, valor_base=Decimal('30.00'))
+
+    def post_json(self, url, payload):
+        return self.client.post(url, payload, content_type='application/json')
+
+    def add(self, product_id, quantity=1):
+        return self.post_json('/carrinho/adicionar/', {
+            'product_id': product_id, 'quantity': quantity,
+        })
+
+    def set_shipping_session(self):
+        session = self.client.session
+        session['shipping'] = {'cep': '01310100', 'method': 'PAC', 'value': '20.00'}
+        session.save()
+
+    def test_add_to_cart_clears_shipping_selection(self):
+        self.set_shipping_session()
+        self.add(self.product.id)
+        self.assertNotIn('shipping', self.client.session)
+
+    def test_update_cart_clears_shipping_selection(self):
+        self.add(self.product.id)
+        self.set_shipping_session()
+        self.post_json('/carrinho/atualizar/', {
+            'key': f'{self.product.id}-', 'action': 'increase',
+        })
+        self.assertNotIn('shipping', self.client.session)
+
+    def test_select_shipping_saves_option_in_session(self):
+        self.add(self.product.id)
+        response = self.post_json('/carrinho/frete/selecionar/', {
+            'cep': '01310100', 'method': 'PAC',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+        shipping = self.client.session['shipping']
+        self.assertEqual(shipping['cep'], '01310100')
+        self.assertEqual(shipping['method'], 'PAC')
+        self.assertEqual(shipping['value'], '20.00')
+
+    def test_select_shipping_rejects_invalid_cep(self):
+        self.add(self.product.id)
+        response = self.post_json('/carrinho/frete/selecionar/', {
+            'cep': '123', 'method': 'PAC',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn('shipping', self.client.session)
+
+    def test_select_shipping_rejects_unknown_method(self):
+        self.add(self.product.id)
+        response = self.post_json('/carrinho/frete/selecionar/', {
+            'cep': '01310100', 'method': 'Inexistente',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn('shipping', self.client.session)
+
+    def test_cart_page_shows_selected_shipping(self):
+        self.add(self.product.id)
+        self.set_shipping_session()
+        response = self.client.get('/carrinho/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'PAC')
+        self.assertContains(response, '120,00')
+
+    def test_checkout_prefills_address_from_cep(self):
+        self.add(self.product.id)
+        self.set_shipping_session()
+        payload = {
+            'cep': '01310-100', 'logradouro': 'Av. Paulista',
+            'bairro': 'Bela Vista', 'localidade': 'São Paulo', 'uf': 'SP',
+        }
+        with mock.patch('shipping.services.urlopen') as mock_urlopen:
+            response_mock = mock.Mock()
+            response_mock.read.return_value = json.dumps(payload).encode('utf-8')
+            mock_urlopen.return_value.__enter__.return_value = response_mock
+            response = self.client.get('/checkout/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="01310100"')
+        self.assertContains(response, 'value="Av. Paulista"')
+        self.assertContains(response, 'value="São Paulo"')
+        self.assertContains(response, 'value="SP"')
+
+    def test_checkout_saves_shipping_on_order(self):
+        self.add(self.product.id)
+        self.set_shipping_session()
+        response = self.client.post('/checkout/', {
+            'full_name': 'Cliente Anônimo',
+            'email': 'cliente@email.com',
+            'phone': '11999999999',
+            'address': 'Av. Paulista, 1000',
+            'city': 'São Paulo',
+            'state': 'SP',
+            'zip_code': '01310-100',
+        })
+        self.assertEqual(response.status_code, 302)
+        order = Order.objects.get()
+        self.assertEqual(order.shipping_method, 'PAC')
+        self.assertEqual(order.shipping_cost, Decimal('20.00'))
+        self.assertEqual(order.total, Decimal('120.00'))
+
+    def test_checkout_clears_shipping_after_order(self):
+        self.add(self.product.id)
+        self.set_shipping_session()
+        self.client.post('/checkout/', {
+            'full_name': 'Cliente Anônimo',
+            'email': 'cliente@email.com',
+            'phone': '11999999999',
+            'address': 'Av. Paulista, 1000',
+            'city': 'São Paulo',
+            'state': 'SP',
+            'zip_code': '01310-100',
+        })
+        self.assertNotIn('shipping', self.client.session)
+
+    def test_order_without_shipping_keeps_defaults(self):
+        self.add(self.product.id)
+        self.client.post('/checkout/', {
+            'full_name': 'Cliente Anônimo',
+            'email': 'cliente@email.com',
+            'phone': '11999999999',
+            'address': 'Rua A, 123',
+            'city': 'São Paulo',
+            'state': 'SP',
+            'zip_code': '01001-001',
+        })
+        order = Order.objects.get()
+        self.assertEqual(order.shipping_method, '')
+        self.assertEqual(order.shipping_cost, Decimal('0'))
+        self.assertEqual(order.total, Decimal('100.00'))

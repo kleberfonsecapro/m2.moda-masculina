@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Pedido Realizado{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <h1>Pedido Realizado com Sucesso</h1>
+        <p>Obrigado pela sua compra!</p>
+    </div>
+</section>
+
+<section class="section order-detail-section">
+    <div class="container">
+        <div class="order-box">
+            <div class="order-status-bar">
+                <div class="order-status status-{{ order.status }}">
+                    <span class="status-badge"><i class="fas fa-check-circle"></i> {{ order.get_status_display }}</span>
+                </div>
+            </div>
+            <div class="order-info-grid">
+                <div class="order-info-block">
+                    <h3>Número do Pedido</h3>
+                    <p>#{{ order.id }}</p>
+                </div>
+                <div class="order-info-block">
+                    <h3>Data</h3>
+                    <p>{{ order.created_at|date:"d/m/Y H:i" }}</p>
+                </div>
+            </div>
+            <div class="order-items-list">
+                <h3>Itens do Pedido</h3>
+                {% for item in order.items.all %}
+                <div class="order-item">
+                    <span class="order-item-name">{{ item.product.name }} x{{ item.quantity }}</span>
+                    <span class="order-item-price">R$ {{ item.total|floatformat:2 }}</span>
+                </div>
+                {% endfor %}
+                {% if order.shipping_method %}
+                <div class="order-item">
+                    <span class="order-item-name">Frete ({{ order.shipping_method }})</span>
+                    <span class="order-item-price">{% if order.shipping_cost == 0 %}Grátis{% else %}R$ {{ order.shipping_cost|floatformat:2 }}{% endif %}</span>
+                </div>
+                {% endif %}
+                <div class="order-total">
+                    <span>Total</span>
+                    <span>R$ {{ order.total|floatformat:2 }}</span>
+                </div>
+            </div>
+            <div class="order-box-actions">
+                <a href="{% url 'catalog:product_list' %}" class="btn btn-primary">Continuar Comprando</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -30,13 +30,11 @@
             </div>
             <div class="header-top-links">
                 {% if user.is_authenticated %}
-                <a href="{% url 'accounts:profile' %}"><i class="fas fa-user"></i> {{ user.first_name|default:user.username }}</a>
+                <span class="header-top-user"><i class="fas fa-user"></i> {{ user.first_name|default:user.username }}</span>
                 <form method="post" action="{% url 'accounts:logout' %}" style="display:inline">
                     {% csrf_token %}
                     <button type="submit"><i class="fas fa-sign-out-alt"></i> Sair</button>
                 </form>
-                {% else %}
-                <a href="{% url 'accounts:login' %}"><i class="fas fa-sign-in-alt"></i> Entrar</a>
                 {% endif %}
             </div>
         </div>
@@ -160,6 +158,17 @@
                 <span>Total</span>
                 <span id="cartSidebarTotal">R$ 0,00</span>
             </div>
+            <div class="cart-sidebar-frete" id="cartSidebarFrete">
+            <div class="shipping-box">
+                <h4>Calcular Frete</h4>
+                <div class="shipping-cep-row">
+                    <input type="text" id="id_cep_cart_sidebar" placeholder="00000-000" maxlength="9" value="">
+                    <button id="btn-calc-shipping-sidebar" class="btn btn-primary" type="button">Calcular</button>
+                </div>
+                <div id="shipping-options-sidebar"></div>
+                <div id="shipping-error-sidebar" class="field-errors"></div>
+            </div>
+        </div>
             <a href="{% url 'catalog:store_checkout' %}" class="btn btn-primary btn-block">Finalizar Pedido</a>
         </div>
     </div>
@@ -283,6 +292,7 @@
         document.getElementById('cartSidebar').classList.add('open');
         document.body.style.overflow = 'hidden';
         loadCart();
+        initSidebarShipping();
     }
 
     function closeCart() {
@@ -400,6 +410,107 @@
             });
     }
 
+    function initSidebarShipping() {
+        const cepInput = document.getElementById('id_cep_cart_sidebar');
+        const shippingOptions = document.getElementById('shipping-options-sidebar');
+        const shippingError = document.getElementById('shipping-error-sidebar');
+        if (!cepInput) return;
+
+        // Remover listeners antigos se existirem
+        const newCepInput = cepInput.cloneNode(true);
+        cepInput.parentNode.replaceChild(newCepInput, cepInput);
+
+        newCepInput.value = maskCep(newCepInput.value);
+        newCepInput.addEventListener('input', function() {
+            this.value = maskCep(this.value);
+        });
+
+        function calcShipping() {
+            const cep = newCepInput.value.replace(/\D/g, '');
+            if (cep.length !== 8) {
+                if (shippingError) shippingError.textContent = 'Digite um CEP válido.';
+                return;
+            }
+            if (shippingError) shippingError.textContent = '';
+            fetch('/frete/calcular/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+                body: JSON.stringify({cep: cep})
+            }).then(r => r.json()).then(data => {
+                if (data.error) {
+                    if (shippingError) shippingError.textContent = data.error;
+                    return;
+                }
+                if (!data.options || data.options.length === 0) {
+                    if (shippingError) shippingError.textContent = 'Não foi possível calcular o frete para este CEP.';
+                    return;
+                }
+                if (shippingOptions) shippingOptions.innerHTML = '';
+                data.options.forEach(option => {
+                    const div = document.createElement('div');
+                    div.className = 'shipping-option';
+                    div.innerHTML = '<span>' + option.name + '</span><span>' +
+                        (option.value === '0.00' ? 'Grátis' : formatBRL(option.value)) + '</span>';
+                    div.addEventListener('click', function() {
+                        selectShipping(cep, option.name);
+                    });
+                    if (shippingOptions) shippingOptions.appendChild(div);
+                });
+            }).catch(function() {
+                if (shippingError) shippingError.textContent = 'Erro ao consultar o frete. Tente novamente.';
+            });
+        }
+
+        function selectShipping(cep, method) {
+            fetch('/carrinho/frete/selecionar/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+                body: JSON.stringify({cep: cep, method: method})
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    const shippingValue = parseFloat(data.shipping.value);
+                    // Atualiza subtotal do sidebar (pega do elemento atual)
+                    const subtotalText = document.getElementById('cartSidebarTotal').textContent;
+                    const subtotal = parseFloat(subtotalText.replace('R$ ', '').replace(',', '.'));
+                    const total = subtotal + shippingValue;
+                    document.getElementById('cartSidebarTotal').textContent = formatBRL(total);
+                    // Adiciona linha de frete no footer
+                    let freteRow = document.getElementById('cartSidebarFreteRow');
+                    if (!freteRow) {
+                        freteRow = document.createElement('div');
+                        freteRow.id = 'cartSidebarFreteRow';
+                        freteRow.className = 'cart-sidebar-frete-row';
+                        freteRow.style.cssText = 'display:flex;justify-content:space-between;padding:6px 0;font-size:0.85rem;border-top:1px solid var(--color-light-gray);margin-top:6px;';
+                        const totalEl = document.getElementById('cartSidebarTotal');
+                        totalEl.parentNode.insertBefore(freteRow, totalEl);
+                    }
+                    freteRow.innerHTML = '<span>Frete (' + data.shipping.method + ')</span><span>' + (shippingValue === 0 ? 'Grátis' : formatBRL(shippingValue)) + '</span>';
+                    // Marca opção selecionada visualmente
+                    document.querySelectorAll('#shipping-options-sidebar .shipping-option').forEach(el => {
+                        el.classList.remove('shipping-option-selected');
+                        if (el.querySelector('span').textContent === data.shipping.method) {
+                            el.classList.add('shipping-option-selected');
+                        }
+                    });
+                    if (shippingError) shippingError.textContent = '';
+                } else if (shippingError) {
+                    shippingError.textContent = data.error || 'Erro ao selecionar o frete.';
+                }
+            }).catch(function() {
+                if (shippingError) shippingError.textContent = 'Erro ao selecionar o frete. Tente novamente.';
+            });
+        }
+
+        const btnCalc = document.getElementById('btn-calc-shipping-sidebar');
+        if (btnCalc) btnCalc.addEventListener('click', calcShipping);
+        newCepInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                calcShipping();
+            }
+        });
+    }
+
     function updateCartBadge() {
         fetch('/carrinho/')
             .then(r => r.text())
@@ -433,6 +544,16 @@
             }
         }
         return cookieValue;
+    }
+
+    function maskCep(value) {
+        let v = (value || '').replace(/\D/g, '').slice(0, 8);
+        if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
+        return v;
+    }
+
+    function formatBRL(value) {
+        return 'R$ ' + parseFloat(value).toFixed(2).replace('.', ',');
     }
 
     function addToCart(productId, variantId, quantity) {

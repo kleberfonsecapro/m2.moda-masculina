@@ -50,13 +50,40 @@
                     <span>Subtotal</span>
                     <span>R$ {{ cart_total|floatformat:2 }}</span>
                 </div>
+                <div class="shipping-box">
+                    <h4>Calcular Frete</h4>
+                    <div class="shipping-cep-row">
+                        <input type="text" id="id_cep_cart" placeholder="00000-000" maxlength="9"
+                               value="{{ shipping.cep|default:'' }}">
+                        <button id="btn-calc-shipping" class="btn btn-primary" type="button">Calcular</button>
+                    </div>
+                    <div id="shipping-options">
+                        {% if shipping %}
+                        <div class="shipping-option shipping-option-selected">
+                            <span>{{ shipping.method }}</span>
+                            <span>{% if shipping.value == "0.00" %}Grátis{% else %}R$ {{ shipping.value }}{% endif %}</span>
+                        </div>
+                        {% else %}
+                        <small class="text-muted">Digite seu CEP para ver as opções de entrega.</small>
+                        {% endif %}
+                    </div>
+                    <div id="shipping-error" class="field-errors"></div>
+                </div>
                 <div class="summary-row">
                     <span>Frete</span>
-                    <span>Calcular no checkout</span>
+                    <span id="summary-frete">
+                        {% if shipping %}
+                            {% if shipping.value == "0.00" %}Grátis{% else %}R$ {{ shipping.value }}{% endif %}
+                        {% else %}Calcular{% endif %}
+                    </span>
                 </div>
                 <div class="summary-row summary-total">
                     <span>Total</span>
-                    <span>R$ {{ cart_total|floatformat:2 }}</span>
+                    <span id="summary-total">
+                        {% if shipping %}
+                            {% if shipping.value == "0.00" %}R$ {{ cart_total|floatformat:2 }}{% else %}R$ {{ shipping_total|floatformat:2 }}{% endif %}
+                        {% else %}R$ {{ cart_total|floatformat:2 }}{% endif %}
+                    </span>
                 </div>
                 <a href="{% url 'catalog:store_checkout' %}" class="btn btn-primary btn-block">Finalizar Pedido</a>
                 <a href="{% url 'catalog:product_list' %}" class="btn btn-outline btn-block" style="margin-top:8px">Continuar Comprando</a>
@@ -87,6 +114,86 @@ function getCookie(name) {
         }
     }
     return cookieValue;
+}
+
+function maskCep(value) {
+    let v = (value || '').replace(/\D/g, '').slice(0, 8);
+    if (v.length > 5) {
+        v = v.slice(0, 5) + '-' + v.slice(5);
+    }
+    return v;
+}
+
+function formatBRL(value) {
+    return 'R$ ' + parseFloat(value).toFixed(2).replace('.', ',');
+}
+
+const cepInput = document.getElementById('id_cep_cart');
+const shippingOptions = document.getElementById('shipping-options');
+const shippingError = document.getElementById('shipping-error');
+
+if (cepInput) {
+    cepInput.value = maskCep(cepInput.value);
+    cepInput.addEventListener('input', function() {
+        this.value = maskCep(this.value);
+    });
+
+    function calcShipping() {
+        const cep = cepInput.value.replace(/\D/g, '');
+        if (cep.length !== 8) {
+            shippingError.textContent = 'Digite um CEP válido.';
+            return;
+        }
+        shippingError.textContent = '';
+        fetch('{% url "shipping:quote" %}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({cep: cep})
+        }).then(r => r.json()).then(data => {
+            if (data.error) {
+                shippingError.textContent = data.error;
+                return;
+            }
+            if (!data.options || data.options.length === 0) {
+                shippingError.textContent = 'Não foi possível calcular o frete para este CEP.';
+                return;
+            }
+            shippingOptions.innerHTML = '';
+            data.options.forEach(option => {
+                const div = document.createElement('div');
+                div.className = 'shipping-option';
+                div.innerHTML = '<span>' + option.name + '</span><span>' +
+                    (option.value === '0.00' ? 'Grátis' : formatBRL(option.value)) + '</span>';
+                div.addEventListener('click', function() {
+                    selectShipping(cep, option.name);
+                });
+                shippingOptions.appendChild(div);
+            });
+        }).catch(function() {
+            shippingError.textContent = 'Erro ao consultar o frete. Tente novamente.';
+        });
+    }
+
+    function selectShipping(cep, method) {
+        fetch('{% url "catalog:select_shipping" %}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({cep: cep, method: method})
+        }).then(r => r.json()).then(data => {
+            if (data.success) location.reload();
+            else shippingError.textContent = data.error || 'Erro ao selecionar o frete.';
+        }).catch(function() {
+            shippingError.textContent = 'Erro ao selecionar o frete. Tente novamente.';
+        });
+    }
+
+    document.getElementById('btn-calc-shipping').addEventListener('click', calcShipping);
+    cepInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            calcShipping();
+        }
+    });
 }
 
 document.querySelectorAll('.qty-increase').forEach(btn => {

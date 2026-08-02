@@ -11,7 +11,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'm2shop.settings')
 django.setup()
 
-from catalog.models import Category, Product, Variant, FeaturedProduct, CarouselSlide, CarouselSettings, SiteConfig, TickerMessage
+from catalog.models import Category, Product, Variant, FeaturedProduct, SiteConfig, TickerMessage
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q
@@ -291,71 +291,6 @@ def seed():
         else:
             print(f"  Produto '{product.name}' já existe")
 
-    # Carrossel - Slides
-    slides_data = [
-        {
-            'label': 'Camisas de Time',
-            'title': 'Camisas de Time',
-            'title_highlight': 'Retrô & Modernas',
-            'description': 'Brasil 94, França, Flamengo e muito mais. Vista suas cores com estilo.',
-            'image_url': 'https://images.unsplash.com/photo-1577223625816-7546f13df25d?w=1200',
-            'link_url': '/produtos/camisas-time/',
-            'link_text': 'Ver Coleção',
-            'order': 0,
-            'active': True,
-        },
-        {
-            'label': 'Camisas Peruanas',
-            'title': 'Camisas Peruanas',
-            'title_highlight': 'Bordados Únicos',
-            'description': 'Artesanais, coloridas e cheias de personalidade. Peças exclusivas para quem ama estilo autêntico.',
-            'image_url': 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=1200',
-            'link_url': '/produtos/camisas-peruanas/',
-            'link_text': 'Ver Coleção',
-            'order': 1,
-            'active': True,
-        },
-        {
-            'label': 'Lançamento',
-            'title': 'Oversized',
-            'title_highlight': 'Conforto Extremo',
-            'description': 'Camisetas oversized em algodão premium. A base do streetwear.',
-            'image_url': 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=1200',
-            'link_url': '/produtos/camisetas-oversized/',
-            'link_text': 'Explorar',
-            'order': 2,
-            'active': True,
-        },
-        {
-            'label': 'Promoção',
-            'title': 'Frete Grátis',
-            'title_highlight': 'Acima de R$ 199',
-            'description': 'Aproveite frete grátis para todo o Brasil em pedidos acima de R$ 199.',
-            'image_url': 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1200',
-            'link_url': '/produtos/',
-            'link_text': 'Comprar Agora',
-            'order': 3,
-            'active': True,
-        },
-    ]
-
-    for slide_data in slides_data:
-        slide, created = CarouselSlide.objects.get_or_create(
-            order=slide_data['order'],
-            defaults=slide_data
-        )
-        if created:
-            print(f"  Slide '{slide.title}' criado")
-        else:
-            print(f"  Slide '{slide.title}' já existe")
-
-    # Garantir que existe configuração do carrossel
-    if not CarouselSettings.objects.exists():
-        CarouselSettings.objects.create()
-        print("  Configurações do Carrossel criadas")
-    else:
-        print("  Configurações do Carrossel já existem")
-
     # Criar variações (tamanhos) para cada produto
     sizes_map = {
         'Camisas Peruanas': ['P', 'M', 'G', 'GG'],
@@ -420,6 +355,32 @@ def seed():
         for product in pending:
             product.save()
         print(f"  QR Codes e códigos gerados para {count} produto(s)")
+
+    # Configuração padrão de frete (embalagem + região). Tarifas ficam no admin.
+    from shipping.models import ShippingConfig, ShippingRegion
+    config, created = ShippingConfig.objects.get_or_create(
+        cep_origem='00000000',
+        defaults={'cep_origem': '00000000', 'peso_padrao_kg': 1.0},
+    )
+    if created:
+        print("  Configuração de frete criada (AJUSTE o CEP de origem e a embalagem no admin)")
+    else:
+        print("  Configuração de frete já existe")
+
+    region, region_created = ShippingRegion.objects.get_or_create(
+        nome='Todo Brasil',
+        defaults={
+            'nome': 'Todo Brasil',
+            'cep_inicio': '00000000',
+            'cep_fim': '99999999',
+            'fator': 1.0,
+        },
+    )
+    if region_created:
+        print("  Região 'Todo Brasil' criada (ajuste faixas e fatores no admin)")
+    else:
+        print("  Região 'Todo Brasil' já existe")
+    print("  IMPORTANTE: cadastre as TARIFAS (Sedex, PAC) em Admin > Frete > Tarifas de Envio")
 
     print("\nBanco populado com sucesso!")
     print("\nCredenciais de acesso:")
