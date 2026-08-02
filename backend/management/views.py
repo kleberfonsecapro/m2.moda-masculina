@@ -308,13 +308,19 @@ class StockAlertView(ManagerRequiredMixin, View):
     def get(self, request):
         threshold = int(request.GET.get('threshold', 5))
         view_mode = request.GET.get('view', 'critical')  # 'critical' or 'all'
+        search = request.GET.get('q', '').strip()
+
+        base_qs = Product.objects.filter(available=True)
+
+        if search:
+            base_qs = base_qs.filter(
+                Q(name__icontains=search) | Q(code__icontains=search)
+            )
 
         if view_mode == 'all':
-            products = Product.objects.filter(available=True).order_by('category__name', 'name')
+            products = base_qs.order_by('category__name', 'name')
         else:
-            products = Product.objects.filter(
-                stock__lte=threshold, available=True
-            ).order_by('stock')
+            products = base_qs.filter(stock__lte=threshold).order_by('stock')
 
         # Valor total em estoque
         total_stock_value = sum(p.stock_value for p in Product.objects.filter(available=True))
@@ -325,6 +331,7 @@ class StockAlertView(ManagerRequiredMixin, View):
             'products': products,
             'threshold': threshold,
             'view_mode': view_mode,
+            'search': search,
             'total_stock_value': total_stock_value,
             'total_items': total_items,
             'critical_count': critical_count,
