@@ -1,47 +1,68 @@
 {% extends 'management/base.html' %}
-{% block title %}Estoque Crítico{% endblock %}
+{% block title %}Estoque{% endblock %}
 
 {% block content %}
 <div class="mgmt-card">
     <div class="mgmt-card-header">
-        <h4><i class="fas fa-boxes"></i> Estoque Crítico</h4>
-        <form method="get" class="mgmt-filter-inline">
-            <label>Limite</label>
-            <select name="threshold" class="form-control" onchange="this.form.submit()">
-                <option value="0" {% if threshold == 0 %}selected{% endif %}>Zerados</option>
-                <option value="2" {% if threshold == 2 %}selected{% endif %}>≤ 2</option>
-                <option value="5" {% if threshold == 5 %}selected{% endif %}>≤ 5</option>
-                <option value="10" {% if threshold == 10 %}selected{% endif %}>≤ 10</option>
-                <option value="20" {% if threshold == 20 %}selected{% endif %}>≤ 20</option>
-            </select>
-        </form>
+        <h4><i class="fas fa-boxes"></i> Estoque</h4>
+        <div class="mgmt-filter-inline">
+            <form method="get" class="mgmt-filter-inline" style="gap: 12px;">
+                <label>Limite crítico</label>
+                <select name="threshold" class="form-control" onchange="this.form.submit()">
+                    <option value="0" {% if threshold == 0 %}selected{% endif %}>Zerados</option>
+                    <option value="2" {% if threshold == 2 %}selected{% endif %}>≤ 2</option>
+                    <option value="5" {% if threshold == 5 %}selected{% endif %}>≤ 5</option>
+                    <option value="10" {% if threshold == 10 %}selected{% endif %}>≤ 10</option>
+                    <option value="20" {% if threshold == 20 %}selected{% endif %}>≤ 20</option>
+                </select>
+            </form>
+        </div>
     </div>
 
-    <div class="mgmt-grid mgmt-grid-3 mb-3">
+    <div class="mgmt-grid mgmt-grid-4 mb-3">
         <div class="mgmt-card">
             <div class="mgmt-card-icon bg-danger"><i class="fas fa-exclamation-triangle"></i></div>
             <div class="mgmt-card-info">
-                <h3>{{ low_stock|length }}</h3>
-                <p>Produtos Críticos</p>
+                <h3>{{ critical_count }}</h3>
+                <p>Críticos (≤{{ threshold }})</p>
             </div>
         </div>
         <div class="mgmt-card">
             <div class="mgmt-card-icon bg-primary"><i class="fas fa-boxes"></i></div>
             <div class="mgmt-card-info">
                 <h3>{{ total_items }}</h3>
-                <p>Itens em Estoque</p>
+                <p>Total de Itens</p>
             </div>
         </div>
         <div class="mgmt-card">
             <div class="mgmt-card-icon bg-success"><i class="fas fa-dollar-sign"></i></div>
             <div class="mgmt-card-info">
                 <h3>R$ {{ total_stock_value|floatformat:2 }}</h3>
-                <p>Valor Total em Estoque</p>
+                <p>Valor Total</p>
+            </div>
+        </div>
+        <div class="mgmt-card">
+            <div class="mgmt-card-icon bg-info"><i class="fas fa-box-open"></i></div>
+            <div class="mgmt-card-info">
+                <h3>{{ products|length }}</h3>
+                <p>{% if view_mode == 'all' %}Exibidos{% else %}Filtrados{% endif %}</p>
             </div>
         </div>
     </div>
 
-    {% if low_stock %}
+    <!-- Abas -->
+    <div class="mgmt-tabs">
+        <a href="?view=critical{% if threshold %}&threshold={{ threshold }}{% endif %}" 
+           class="mgmt-tab {% if view_mode == 'critical' %}active{% endif %}">
+            <i class="fas fa-exclamation-triangle"></i> Críticos (≤{{ threshold }})
+        </a>
+        <a href="?view=all{% if threshold %}&threshold={{ threshold }}{% endif %}" 
+           class="mgmt-tab {% if view_mode == 'all' %}active{% endif %}">
+            <i class="fas fa-list"></i> Todos os Produtos
+        </a>
+    </div>
+
+    {% if products %}
     <div class="mgmt-table-wrapper">
         <table class="mgmt-table">
             <thead>
@@ -56,8 +77,8 @@
                 </tr>
             </thead>
             <tbody>
-                {% for p in low_stock %}
-                <tr class="{% if p.stock == 0 %}table-danger{% elif p.stock <= 2 %}table-warning{% endif %}">
+                {% for p in products %}
+                <tr class="{% if p.stock == 0 %}table-danger{% elif p.stock <= 2 %}table-warning{% elif p.stock <= threshold %}table-info{% endif %}">
                     <td>{{ p.code }}</td>
                     <td>{{ p.name }}</td>
                     <td>{{ p.category.name }}</td>
@@ -69,8 +90,10 @@
                             <span class="badge bg-danger">Zerado</span>
                         {% elif p.stock <= 2 %}
                             <span class="badge bg-warning">Crítico</span>
-                        {% else %}
+                        {% elif p.stock <= threshold %}
                             <span class="badge bg-info">Baixo</span>
+                        {% else %}
+                            <span class="badge bg-success">OK</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -81,7 +104,42 @@
     {% else %}
     <div class="text-center text-success py-4">
         <i class="fas fa-check-circle fa-3x"></i>
-        <h4>Todos os produtos com estoque adequado!</h4>
+        <h4>Nenhum produto encontrado.</h4>
     </div>
     {% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.mgmt-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 4px;
+}
+.mgmt-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    color: #6c757d;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+    border-radius: 6px 6px 0 0;
+    transition: all 0.2s;
+}
+.mgmt-tab:hover {
+    color: #495057;
+    background: #f8f9fa;
+}
+.mgmt-tab.active {
+    color: #fd7e14;
+    background: #fff;
+    border-bottom: 3px solid #fd7e14;
+    font-weight: 600;
+}
+.table-info { background: #d1ecf1 !important; }
+</style>
 {% endblock %}

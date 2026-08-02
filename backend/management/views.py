@@ -307,20 +307,27 @@ class FinancialView(ManagerRequiredMixin, View):
 class StockAlertView(ManagerRequiredMixin, View):
     def get(self, request):
         threshold = int(request.GET.get('threshold', 5))
+        view_mode = request.GET.get('view', 'critical')  # 'critical' or 'all'
 
-        low_stock = Product.objects.filter(
-            stock__lte=threshold, available=True
-        ).order_by('stock')
+        if view_mode == 'all':
+            products = Product.objects.filter(available=True).order_by('category__name', 'name')
+        else:
+            products = Product.objects.filter(
+                stock__lte=threshold, available=True
+            ).order_by('stock')
 
         # Valor total em estoque
         total_stock_value = sum(p.stock_value for p in Product.objects.filter(available=True))
         total_items = sum(p.stock for p in Product.objects.filter(available=True))
+        critical_count = Product.objects.filter(stock__lte=threshold, available=True).count()
 
         context = {
-            'low_stock': low_stock,
+            'products': products,
             'threshold': threshold,
+            'view_mode': view_mode,
             'total_stock_value': total_stock_value,
             'total_items': total_items,
+            'critical_count': critical_count,
         }
         return render(request, 'management/stock_alert.html', context)
 
