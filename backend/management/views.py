@@ -15,18 +15,38 @@ from catalog.models import Product
 from .models import OrderStatusHistory, Shipment
 
 
+from decimal import Decimal
+from datetime import timedelta
+from django.db.models import Count, Sum, Q, F
+from django.utils import timezone
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.views.generic import ListView, DetailView, View
+from django.http import JsonResponse, HttpResponse
+from django.core.paginator import Paginator
+from django.db.models.functions import TruncDate, TruncMonth
+from django.urls import reverse_lazy
+from orders.models import Order
+from catalog.models import Product
+from .models import OrderStatusHistory, Shipment
+
+
 def is_manager(user):
     return user.is_authenticated and (user.is_superuser or user.groups.filter(name='Gerentes').exists())
 
 
 class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    login_url = '/gerencial/entrar/'
+    redirect_field_name = 'next'
+
     def test_func(self):
         return is_manager(self.request.user)
 
     def handle_no_permission(self):
         if not self.request.user.is_authenticated:
-            return redirect('/vendas/entrar/')
-        return redirect('/')
+            return redirect('/gerencial/entrar/')
+        return redirect('/gerencial/entrar/')
 
 
 class DashboardView(ManagerRequiredMixin, View):

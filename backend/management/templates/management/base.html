@@ -33,7 +33,7 @@
         </nav>
         <div class="mgmt-user">
             <span>{{ request.user.get_full_name|default:request.user.username }}</span>
-            <a href="/vendas/sair/" class="btn btn-sm btn-outline">Sair</a>
+            <a href="{% url 'management:logout' %}" class="btn btn-sm btn-outline">Sair</a>
         </div>
     </header>
 

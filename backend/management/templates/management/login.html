@@ -1,0 +1,81 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Painel Gerencial</title>
+    <link rel="stylesheet" href="{% static 'css/management.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <i class="fas fa-store"></i>
+                <h1>M2 Moda Masculina</h1>
+                <p>Painel Gerencial</p>
+            </div>
+
+            {% if messages %}
+            <div class="mgmt-messages">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="post" class="login-form">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="id_username"><i class="fas fa-user"></i> Usuário</label>
+                    <input type="text" name="username" id="id_username" class="form-control" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label for="id_password"><i class="fas fa-lock"></i> Senha</label>
+                    <input type="password" name="password" id="id_password" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i class="fas fa-sign-in-alt"></i> Entrar
+                </button>
+            </form>
+
+            <div class="login-footer">
+                <p><i class="fas fa-info-circle"></i> Acesso restrito a gerentes e administradores.</p>
+                <a href="/" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Voltar ao Site</a>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 20px;
+        }
+        .login-container { width: 100%; max-width: 420px; }
+        .login-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .login-header { text-align: center; margin-bottom: 24px; }
+        .login-header i { font-size: 3rem; color: #fd7e14; margin-bottom: 12px; }
+        .login-header h1 { margin: 0 0 4px; font-size: 1.75rem; color: #1a1a2e; }
+        .login-header p { margin: 0; color: #6c757d; }
+        .login-form { margin-bottom: 20px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 500; font-size: 0.85rem; color: #495057; }
+        .form-group label i { color: #6c757d; }
+        .login-footer { text-align: center; padding-top: 16px; border-top: 1px solid #e9ecef; }
+        .login-footer p { margin: 0 0 12px; font-size: 0.8rem; color: #6c757d; }
+        .login-footer p i { color: #fd7e14; }
+        .btn-block { width: 100%; padding: 12px; font-size: 1rem; }
+        .mgmt-messages { margin-bottom: 16px; }
+    </style>
+</body>
+</html>

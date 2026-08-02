@@ -1,9 +1,12 @@
 from django.urls import path
 from . import views
+from .auth_views import manager_login, manager_logout
 
 app_name = 'management'
 
 urlpatterns = [
+    path('entrar/', manager_login, name='login'),
+    path('sair/', manager_logout, name='logout'),
     path('', views.DashboardView.as_view(), name='dashboard'),
     path('pedidos/', views.OrderListView.as_view(), name='order_list'),
     path('pedidos/exportar/', views.ExportOrdersView.as_view(), name='export_orders'),
