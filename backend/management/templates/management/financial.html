@@ -1,0 +1,187 @@
+{% extends 'management/base.html' %}
+{% block title %}Financeiro{% endblock %}
+
+{% block content %}
+<div class="mgmt-card">
+    <div class="mgmt-card-header">
+        <h4><i class="fas fa-chart-line"></i> Financeiro</h4>
+        <form method="get" class="mgmt-filter-inline">
+            <label>Período</label>
+            <select name="period" class="form-control" onchange="this.form.submit()">
+                <option value="today" {% if period == 'today' %}selected{% endif %}>Hoje</option>
+                <option value="week" {% if period == 'week' %}selected{% endif %}>Últimos 7 dias</option>
+                <option value="month" {% if period == 'month' %}selected{% endif %}>Mês atual</option>
+                <option value="year" {% if period == 'year' %}selected{% endif %}>Ano atual</option>
+            </select>
+        </form>
+    </div>
+
+    <div class="mgmt-grid mgmt-grid-4">
+        <div class="mgmt-card">
+            <div class="mgmt-card-icon bg-primary"><i class="fas fa-shopping-bag"></i></div>
+            <div class="mgmt-card-info">
+                <h3>{{ summary.total_orders|default:0 }}</h3>
+                <p>Pedidos</p>
+            </div>
+        </div>
+        <div class="mgmt-card">
+            <div class="mgmt-card-icon bg-success"><i class="fas fa-money-bill-wave"></i></div>
+            <div class="mgmt-card-info">
+                <h3>R$ {{ summary.total_revenue|default:0|floatformat:2 }}</h3>
+                <p>Faturamento Total</p>
+            </div>
+        </div>
+        <div class="mgmt-card">
+            <div class="mgmt-card-icon bg-warning"><i class="fas fa-truck"></i></div>
+            <div class="mgmt-card-info">
+                <h3>R$ {{ summary.total_shipping|default:0|floatformat:2 }}</h3>
+                <p>Frete Total</p>
+            </div>
+        </div>
+        <div class="mgmt-card">
+            <div class="mgmt-card-icon bg-info"><i class="fas fa-calculator"></i></div>
+            <div class="mgmt-card-info">
+                <h3>R$ {{ summary.total_revenue|default:0|div:summary.total_orders|floatformat:2 }}</h3>
+                <p>Ticket Médio</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mgmt-grid mgmt-grid-2">
+        <div class="mgmt-card mgmt-card-full">
+            <h4><i class="fas fa-credit-card"></i> Por Forma de Pagamento</h4>
+            <canvas id="paymentChart" height="250"></canvas>
+            <div class="mgmt-table-wrapper mt-3">
+                <table class="mgmt-table">
+                    <thead><tr><th>Forma</th><th>Pedidos</th><th>Faturamento</th><th>%</th></tr></thead>
+                    <tbody>
+                        {% for p in by_payment %}
+                        <tr>
+                            <td>{{ p.payment_method|upper }}</td>
+                            <td>{{ p.count }}</td>
+                            <td>R$ {{ p.revenue|floatformat:2 }}</td>
+                            <td>{{ p.revenue|div:summary.total_revenue|floatformat:2 }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mgmt-card mgmt-card-full">
+            <h4><i class="fas fa-store"></i> Por Canal</h4>
+            <canvas id="channelChart" height="250"></canvas>
+            <div class="mgmt-table-wrapper mt-3">
+                <table class="mgmt-table">
+                    <thead><tr><th>Canal</th><th>Pedidos</th><th>Faturamento</th><th>%</th></tr></thead>
+                    <tbody>
+                        {% for c in by_channel %}
+                        <tr>
+                            <td>{% if c.channel %}Site{% else %}PDV{% endif %}</td>
+                            <td>{{ c.count }}</td>
+                            <td>R$ {{ c.revenue|floatformat:2 }}</td>
+                            <td>{{ c.revenue|div:summary.total_revenue|floatformat:2 }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="mgmt-card mgmt-card-full">
+        <h4><i class="fas fa-users-cog"></i> Por Vendedor (PDV)</h4>
+        {% if by_seller %}
+        <div class="mgmt-table-wrapper">
+            <table class="mgmt-table">
+                <thead><tr><th>Vendedor</th><th>Pedidos</th><th>Faturamento</th><th>Ticket Médio</th></tr></thead>
+                <tbody>
+                    {% for s in by_seller %}
+                    <tr>
+                        <td>{{ s.user__first_name }} {{ s.user__last_name|default:'' }} ({{ s.user__username }})</td>
+                        <td>{{ s.count }}</td>
+                        <td>R$ {{ s.revenue|floatformat:2 }}</td>
+                        <td>R$ {{ s.revenue|div:s.count|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}<p class="text-muted">Nenhum vendedor com pedidos no período.</p>{% endif %}
+    </div>
+
+    <div class="mgmt-card mgmt-card-full">
+        <h4><i class="fas fa-chart-area"></i> Evolução Diária (Últimos 30 dias)</h4>
+        <canvas id="dailyChart" height="200"></canvas>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const paymentData = {{ by_payment|safe }};
+const channelData = {{ by_channel|safe }};
+const dailyData = {{ daily|safe }};
+const summary = {{ summary|safe }};
+
+if (document.getElementById('paymentChart')) {
+    new Chart(document.getElementById('paymentChart'), {
+        type: 'pie',
+        data: {
+            labels: paymentData.map(p => p.payment_method.toUpperCase()),
+            datasets: [{
+                data: paymentData.map(p => parseFloat(p.revenue)),
+                backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1']
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+}
+
+if (document.getElementById('channelChart')) {
+    new Chart(document.getElementById('channelChart'), {
+        type: 'doughnut',
+        data: {
+            labels: channelData.map(c => c.channel ? 'Site' : 'PDV'),
+            datasets: [{
+                data: channelData.map(c => parseFloat(c.revenue)),
+                backgroundColor: ['#17a2b8', '#fd7e14']
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+}
+
+if (document.getElementById('dailyChart')) {
+    new Chart(document.getElementById('dailyChart'), {
+        type: 'line',
+        data: {
+            labels: dailyData.map(d => new Date(d.day).toLocaleDateString('pt-BR')),
+            datasets: [{
+                label: 'Faturamento (R$)',
+                data: dailyData.map(d => parseFloat(d.revenue)),
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0,123,255,0.1)',
+                fill: true,
+                tension: 0.3
+            }, {
+                label: 'Pedidos',
+                data: dailyData.map(d => parseInt(d.orders)),
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40,167,69,0.1)',
+                fill: true,
+                tension: 0.3,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { type: 'linear', position: 'left', title: { display: true, text: 'Faturamento (R$)' } },
+                y1: { type: 'linear', position: 'right', title: { display: true, text: 'Pedidos' }, grid: { drawOnChartArea: false } }
+            },
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+}
+</script>
+{% endblock %}

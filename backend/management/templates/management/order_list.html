@@ -1,0 +1,132 @@
+{% extends 'management/base.html' %}
+{% block title %}Pedidos{% endblock %}
+
+{% block content %}
+<div class="mgmt-card">
+    <div class="mgmt-card-header">
+        <h4><i class="fas fa-list-alt"></i> Pedidos</h4>
+        <a href="{% url 'management:export_orders' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-sm btn-outline">
+            <i class="fas fa-download"></i> Exportar CSV
+        </a>
+    </div>
+
+    <form method="get" class="mgmt-filters">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="">Todos</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Pagamento</label>
+                <select name="payment" class="form-control">
+                    <option value="">Todos</option>
+                    {% for value, label in payment_choices %}
+                    <option value="{{ value }}" {% if current_filters.payment == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Canal</label>
+                <select name="channel" class="form-control">
+                    <option value="">Todos</option>
+                    <option value="site" {% if current_filters.channel == 'site' %}selected{% endif %}>Site</option>
+                    <option value="pdv" {% if current_filters.channel == 'pdv' %}selected{% endif %}>PDV</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>De</label>
+                <input type="date" name="date_from" class="form-control" value="{{ current_filters.date_from }}">
+            </div>
+            <div class="filter-group">
+                <label>Até</label>
+                <input type="date" name="date_to" class="form-control" value="{{ current_filters.date_to }}">
+            </div>
+            <div class="filter-group">
+                <label>Busca</label>
+                <input type="text" name="q" class="form-control" placeholder="ID, nome, email, CPF..." value="{{ current_filters.q }}">
+            </div>
+            <div class="filter-group filter-actions">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filtrar</button>
+                <a href="{% url 'management:order_list' %}" class="btn btn-outline"><i class="fas fa-times"></i> Limpar</a>
+            </div>
+        </div>
+    </form>
+
+    {% if orders %}
+    <div class="mgmt-table-wrapper">
+        <table class="mgmt-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Data/Hora</th>
+                    <th>Canal</th>
+                    <th>Cliente</th>
+                    <th>Status</th>
+                    <th>Pagamento</th>
+                    <th>Frete</th>
+                    <th>Total</th>
+                    <th>Vendedor</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in orders %}
+                <tr>
+                    <td><a href="{% url 'management:order_detail' o.id %}">#{{ o.id }}</a></td>
+                    <td>{{ o.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        {% if o.user %}
+                            <span class="badge bg-pdv">PDV</span>
+                        {% else %}
+                            <span class="badge bg-site">Site</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ o.full_name }}</td>
+                    <td><span class="badge bg-{{ o.status }}">{{ o.get_status_display }}</span></td>
+                    <td>{{ o.get_payment_method_display }}</td>
+                    <td>R$ {{ o.shipping_cost|floatformat:2 }}</td>
+                    <td><strong>R$ {{ o.total|floatformat:2 }}</strong></td>
+                    <td>
+                        {% if o.user %}
+                            {{ o.user.get_full_name|default:o.user.username }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'management:order_detail' o.id %}" class="btn btn-sm btn-outline" title="Detalhes">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        {% if o.status != 'shipped' and o.status != 'delivered' and o.status != 'cancelled' %}
+                        <a href="{% url 'management:dispatch' o.id %}" class="btn btn-sm btn-primary" title="Despachar">
+                            <i class="fas fa-truck"></i>
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <nav class="mgmt-pagination">
+        {% if page_obj.has_previous %}
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}" class="btn btn-sm btn-outline">&laquo; Anterior</a>
+        {% endif %}
+        <span class="pagination-info">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}" class="btn btn-sm btn-outline">Próxima &raquo;</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="text-center text-muted py-4">Nenhum pedido encontrado.</div>
+    {% endif %}
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends 'management/base.html' %}
+{% block title %}Pedido #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="mgmt-card">
+    <div class="mgmt-card-header">
+        <h4><i class="fas fa-receipt"></i> Pedido #{{ order.id }}</h4>
+        <div class="mgmt-actions">
+            <a href="{% url 'management:order_list' %}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Voltar</a>
+            {% if order.status not in 'shipped delivered cancelled' %}
+            <a href="{% url 'management:dispatch' order.id %}" class="btn btn-primary btn-sm"><i class="fas fa-truck"></i> Despachar</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mgmt-grid mgmt-grid-3">
+        <div class="mgmt-info-block">
+            <h5><i class="fas fa-user"></i> Cliente</h5>
+            <p><strong>{{ order.full_name }}</strong></p>
+            <p>{{ order.email }}<br>{{ order.phone }}</p>
+            {% if order.cpf %}<p>CPF: {{ order.cpf }}</p>{% endif %}
+        </div>
+        <div class="mgmt-info-block">
+            <h5><i class="fas fa-map-marker-alt"></i> Endereço</h5>
+            <p>{{ order.address }}</p>
+            <p>{{ order.city }} - {{ order.state }}</p>
+            <p>CEP: {{ order.zip_code }}</p>
+        </div>
+        <div class="mgmt-info-block">
+            <h5><i class="fas fa-info-circle"></i> Detalhes</h5>
+            <p><strong>Canal:</strong> {% if order.user %}PDV ({{ order.user.get_full_name|default:order.user.username }}){% else %}Site{% endif %}</p>
+            <p><strong>Pagamento:</strong> {{ order.get_payment_method_display }}</p>
+            <p><strong>Frete:</strong> {{ order.shipping_method|default:'-' }} (R$ {{ order.shipping_cost|floatformat:2 }})</p>
+            <p><strong>Data:</strong> {{ order.created_at|date:"d/m/Y H:i" }}</p>
+        </div>
+    </div>
+
+    <h5 class="mgmt-section-title"><i class="fas fa-box"></i> Itens do Pedido</h5>
+    <div class="mgmt-table-wrapper">
+        <table class="mgmt-table">
+            <thead><tr><th>Produto</th><th>Var.</th><th>Qtd</th><th>Preço Unit.</th><th>Total</th></tr></thead>
+            <tbody>
+                {% for item in order.items.all %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td>{{ item.variant|default:'-' }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>R$ {{ item.price|floatformat:2 }}</td>
+                    <td>R$ {{ item.total|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mgmt-summary">
+        <div class="summary-row"><span>Subtotal</span><span>R$ {{ order.total|add:order.shipping_cost|floatformat:2 }}</span></div>
+        <div class="summary-row"><span>Frete ({{ order.shipping_method|default:'-' }})</span><span>R$ {{ order.shipping_cost|floatformat:2 }}</span></div>
+        <div class="summary-row summary-total"><span>Total</span><span>R$ {{ order.total|floatformat:2 }}</span></div>
+    </div>
+</div>
+
+<div class="mgmt-grid mgmt-grid-2">
+    <div class="mgmt-card">
+        <div class="mgmt-card-header">
+            <h5><i class="fas fa-exchange-alt"></i> Alterar Status</h5>
+        </div>
+        <form method="post" action="{% url 'management:order_status_update' order.id %}" class="mgmt-form" id="statusForm">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Novo Status</label>
+                <select name="status" class="form-control" required>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if value == order.status %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Observações (opcional)</label>
+                <textarea name="notes" class="form-control" rows="2" placeholder="Motivo da alteração..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Atualizar</button>
+        </form>
+    </div>
+
+    <div class="mgmt-card">
+        <h5><i class="fas fa-history"></i> Timeline do Pedido</h5>
+        <div class="mgmt-timeline">
+            {% for h in history %}
+            <div class="timeline-item {% if forloop.first %}current{% endif %}">
+                <div class="timeline-marker"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <strong>{{ h.get_status_display }}</strong>
+                        <small class="text-muted">{{ h.created_at|date:"d/m/Y H:i" }}</small>
+                    </div>
+                    {% if h.changed_by %}
+                    <div class="timeline-meta">por {{ h.changed_by.get_full_name|default:h.changed_by.username }}</div>
+                    {% endif %}
+                    {% if h.notes %}
+                    <div class="timeline-notes">{{ h.notes }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-muted text-center py-3">Nenhum histórico disponível.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="mgmt-card">
+    <h5><i class="fas fa-truck"></i> Despacho / Rastreio</h5>
+    {% if shipment %}
+    <div class="mgmt-grid mgmt-grid-2">
+        <div>
+            <p><strong>Código de Rastreio:</strong> {% if shipment.tracking_code %}{{ shipment.tracking_code }}{% else %}<span class="text-muted">Não informado</span>{% endif %}</p>
+            <p><strong>Despachado em:</strong> {% if shipment.dispatched_at %}{{ shipment.dispatched_at|date:"d/m/Y H:i" }}{% else %}<span class="text-muted">Não despachado</span>{% endif %}</p>
+            <p><strong>Entregue em:</strong> {% if shipment.delivered_at %}{{ shipment.delivered_at|date:"d/m/Y H:i" }}{% else %}<span class="text-muted">Não entregue</span>{% endif %}</p>
+        </div>
+        <div>
+            {% if shipment.label_pdf %}
+            <a href="{{ shipment.label_pdf.url }}" target="_blank" class="btn btn-outline btn-sm"><i class="fas fa-file-pdf"></i> Ver Etiqueta</a>
+            {% endif %}
+            {% if not shipment.is_dispatched %}
+            <a href="{% url 'management:dispatch' order.id %}" class="btn btn-primary btn-sm"><i class="fas fa-truck"></i> Despachar</a>
+            {% elif not shipment.is_delivered %}
+            <a href="{% url 'management:dispatch' order.id %}" class="btn btn-success btn-sm"><i class="fas fa-check-circle"></i> Marcar Entregue</a>
+            {% else %}
+            <span class="badge bg-success">Entregue</span>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted">Nenhum despacho registrado.</p>
+    <a href="{% url 'management:dispatch' order.id %}" class="btn btn-primary btn-sm"><i class="fas fa-truck"></i> Iniciar Despacho</a>
+    {% endif %}
+    {% if shipment and shipment.notes %}
+    <div class="mt-3 p-3 bg-light rounded">
+        <strong>Observações:</strong> {{ shipment.notes }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('statusForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    fetch(this.action, { method: 'POST', body: formData, headers: { 'X-CSRFToken': '{{ csrf_token }}' }})
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erro: ' + data.error);
+            }
+        });
+});
+</script>
+{% endblock %}

@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'accounts.apps.AccountsConfig',
     'orders',
     'shipping',
+    'management',
 ]
 
 MIDDLEWARE = [
@@ -35,6 +36,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'catalog.middleware.SecurityHeadersMiddleware',
+    'management.signals.CurrentUserMiddleware',
 ]
 
 ROOT_URLCONF = 'm2shop.urls'

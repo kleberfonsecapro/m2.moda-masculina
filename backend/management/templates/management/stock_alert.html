@@ -1,0 +1,88 @@
+{% extends 'management/base.html' %}
+{% block title %}Estoque Crítico{% endblock %}
+
+{% block content %}
+<div class="mgmt-card">
+    <div class="mgmt-card-header">
+        <h4><i class="fas fa-boxes"></i> Estoque Crítico</h4>
+        <form method="get" class="mgmt-filter-inline">
+            <label>Limite</label>
+            <select name="threshold" class="form-control" onchange="this.form.submit()">
+                <option value="0" {% if threshold == 0 %}selected{% endif %}>Zerados</option>
+                <option value="2" {% if threshold == 2 %}selected{% endif %}>≤ 2</option>
+                <option value="5" {% if threshold == 5 %}selected{% endif %}>≤ 5</option>
+                <option value="10" {% if threshold == 10 %}selected{% endif %}>≤ 10</option>
+                <option value="20" {% if threshold == 20 %}selected{% endif %}>≤ 20</option>
+            </select>
+        </form>
+    </div>
+
+    <div class="mgmt-grid mgmt-grid-3 mb-3">
+        <div class="mgmt-card">
+            <div class="mgmt-card-icon bg-danger"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="mgmt-card-info">
+                <h3>{{ low_stock|length }}</h3>
+                <p>Produtos Críticos</p>
+            </div>
+        </div>
+        <div class="mgmt-card">
+            <div class="mgmt-card-icon bg-primary"><i class="fas fa-boxes"></i></div>
+            <div class="mgmt-card-info">
+                <h3>{{ total_items }}</h3>
+                <p>Itens em Estoque</p>
+            </div>
+        </div>
+        <div class="mgmt-card">
+            <div class="mgmt-card-icon bg-success"><i class="fas fa-dollar-sign"></i></div>
+            <div class="mgmt-card-info">
+                <h3>R$ {{ total_stock_value|floatformat:2 }}</h3>
+                <p>Valor Total em Estoque</p>
+            </div>
+        </div>
+    </div>
+
+    {% if low_stock %}
+    <div class="mgmt-table-wrapper">
+        <table class="mgmt-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Produto</th>
+                    <th>Categoria</th>
+                    <th>Estoque</th>
+                    <th>Preço</th>
+                    <th>Valor em Estoque</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in low_stock %}
+                <tr class="{% if p.stock == 0 %}table-danger{% elif p.stock <= 2 %}table-warning{% endif %}">
+                    <td>{{ p.code }}</td>
+                    <td>{{ p.name }}</td>
+                    <td>{{ p.category.name }}</td>
+                    <td><strong>{{ p.stock }}</strong></td>
+                    <td>R$ {{ p.effective_price|floatformat:2 }}</td>
+                    <td>R$ {{ p.stock_value|floatformat:2 }}</td>
+                    <td>
+                        {% if p.stock == 0 %}
+                            <span class="badge bg-danger">Zerado</span>
+                        {% elif p.stock <= 2 %}
+                            <span class="badge bg-warning">Crítico</span>
+                        {% else %}
+                            <span class="badge bg-info">Baixo</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center text-success py-4">
+        <i class="fas fa-check-circle fa-3x"></i>
+        <h4>Todos os produtos com estoque adequado!</h4>
+    </div>
+    {% endif %}
+{% endblock %}
+{% endblock %}

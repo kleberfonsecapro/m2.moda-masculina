@@ -1,0 +1,132 @@
+{% extends 'management/base.html' %}
+{% load static %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="mgmt-grid mgmt-grid-4">
+    <div class="mgmt-card">
+        <div class="mgmt-card-icon bg-primary"><i class="fas fa-shopping-bag"></i></div>
+        <div class="mgmt-card-info">
+            <h3>{{ orders_today }}</h3>
+            <p>Pedidos Hoje</p>
+        </div>
+    </div>
+    <div class="mgmt-card">
+        <div class="mgmt-card-icon bg-success"><i class="fas fa-money-bill-wave"></i></div>
+        <div class="mgmt-card-info">
+            <h3>R$ {{ revenue_today|floatformat:2 }}</h3>
+            <p>Faturamento Hoje</p>
+        </div>
+    </div>
+    <div class="mgmt-card">
+        <div class="mgmt-card-icon bg-warning"><i class="fas fa-calendar-alt"></i></div>
+        <div class="mgmt-card-info">
+            <h3>{{ orders_month }}</h3>
+            <p>Pedidos no Mês</p>
+        </div>
+    </div>
+    <div class="mgmt-card">
+        <div class="mgmt-card-icon bg-info"><i class="fas fa-chart-line"></i></div>
+        <div class="mgmt-card-info">
+            <h3>R$ {{ revenue_month|floatformat:2 }}</h3>
+            <p>Faturamento Mês</p>
+        </div>
+    </div>
+</div>
+
+<div class="mgmt-grid mgmt-grid-2">
+    <div class="mgmt-card mgmt-card-full">
+        <h4><i class="fas fa-filter"></i> Pedidos por Status</h4>
+        <canvas id="statusChart" height="200"></canvas>
+    </div>
+    <div class="mgmt-card mgmt-card-full">
+        <h4><i class="fas fa-users"></i> Top Vendedores (PDV)</h4>
+        {% if top_sellers %}
+        <div class="mgmt-table-wrapper">
+            <table class="mgmt-table">
+                <thead><tr><th>Vendedor</th><th>Pedidos</th><th>Faturamento</th></tr></thead>
+                <tbody>
+                    {% for s in top_sellers %}
+                    <tr>
+                        <td>{{ s.user__first_name }} {{ s.user__last_name|default:'' }} ({{ s.user__username }})</td>
+                        <td>{{ s.total_orders }}</td>
+                        <td>R$ {{ s.total_revenue|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}<p class="text-muted">Nenhum vendedor com pedidos no período.</p>{% endif %}
+    </div>
+</div>
+
+<div class="mgmt-grid mgmt-grid-2">
+    <div class="mgmt-card mgmt-card-full">
+        <h4><i class="fas fa-clock"></i> Pedidos Recentes</h4>
+        {% if recent_orders %}
+        <div class="mgmt-table-wrapper">
+            <table class="mgmt-table">
+                <thead><tr><th>ID</th><th>Cliente</th><th>Canal</th><th>Status</th><th>Total</th><th>Data</th></tr></thead>
+                <tbody>
+                    {% for o in recent_orders %}
+                    <tr>
+                        <td><a href="{% url 'management:order_detail' o.id %}">#{{ o.id }}</a></td>
+                        <td>{{ o.full_name }}</td>
+                        <td>{% if o.user %}<span class="badge bg-pdv">PDV</span>{% else %}<span class="badge bg-site">Site</span>{% endif %}</td>
+                        <td><span class="badge bg-{{ o.status }}">{{ o.get_status_display }}</span></td>
+                        <td>R$ {{ o.total|floatformat:2 }}</td>
+                        <td>{{ o.created_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}<p class="text-muted">Nenhum pedido recente.</p>{% endif %}
+    </div>
+    <div class="mgmt-card mgmt-card-full">
+        <h4><i class="fas fa-exclamation-triangle text-danger"></i> Estoque Crítico (≤5)</h4>
+        {% if low_stock %}
+        <div class="mgmt-table-wrapper">
+            <table class="mgmt-table">
+                <thead><tr><th>Produto</th><th>Estoque</th><th>Valor</th></tr></thead>
+                <tbody>
+                    {% for p in low_stock %}
+                    <tr class="{% if p.stock == 0 %}table-danger{% elif p.stock <= 2 %}table-warning{% endif %}">
+                        <td>{{ p.name }}</td>
+                        <td>{{ p.stock }}</td>
+                        <td>R$ {{ p.stock_value|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}<p class="text-muted text-success">Todos os produtos com estoque adequado.</p>{% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const statusData = {{ status_data|safe }};
+const ctx = document.getElementById('statusChart');
+if (ctx) {
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(statusData).map(k => {
+                const labels = {
+                    pending: 'Pendente', confirmed: 'Confirmado', processing: 'Em Preparação',
+                    shipped: 'Enviado', delivered: 'Entregue', cancelled: 'Cancelado'
+                };
+                return labels[k] || k;
+            }),
+            datasets: [{
+                data: Object.values(statusData),
+                backgroundColor: ['#ffc107', '#17a2b8', '#6f42c1', '#fd7e14', '#28a745', '#dc3545']
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+}
+</script>
+{% endblock %}

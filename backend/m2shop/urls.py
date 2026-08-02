@@ -13,6 +13,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls', namespace='accounts')),
     path('orders/', include('orders.urls', namespace='orders')),
     path('frete/', include('shipping.urls', namespace='shipping')),
+    path('gerencial/', include('management.urls', namespace='management')),
 ]
 
 if settings.DEBUG:

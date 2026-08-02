@@ -1,0 +1,58 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Painel Gerencial{% endblock %} - M2 Moda Masculina</title>
+    <link rel="stylesheet" href="{% static 'css/management.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% if 'financial' in request.path or 'dashboard' in request.path %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    {% endif %}
+</head>
+<body>
+    <header class="mgmt-header">
+        <div class="mgmt-brand">
+            <i class="fas fa-store"></i>
+            <span>M2 Moda Masculina - Gerencial</span>
+        </div>
+        <nav class="mgmt-nav">
+            <a href="{% url 'management:dashboard' %}" class="{% if request.path == '/gerencial/' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a href="{% url 'management:order_list' %}" class="{% if 'order_list' in request.path or 'order_detail' in request.path or 'dispatch' in request.path %}active{% endif %}">
+                <i class="fas fa-list-alt"></i> Pedidos
+            </a>
+            <a href="{% url 'management:financial' %}" class="{% if 'financial' in request.path %}active{% endif %}">
+                <i class="fas fa-chart-line"></i> Financeiro
+            </a>
+            <a href="{% url 'management:stock_alert' %}" class="{% if 'stock_alert' in request.path %}active{% endif %}">
+                <i class="fas fa-boxes"></i> Estoque
+            </a>
+        </nav>
+        <div class="mgmt-user">
+            <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+            <a href="/vendas/sair/" class="btn btn-sm btn-outline">Sair</a>
+        </div>
+    </header>
+
+    <main class="mgmt-main">
+        {% if messages %}
+        <div class="mgmt-messages">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="mgmt-footer">
+        <small>M2 Moda Masculina - Painel Gerencial</small>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
