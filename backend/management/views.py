@@ -1,6 +1,7 @@
 from decimal import Decimal
 from datetime import timedelta
-from django.db.models import Count, Sum, Q, F
+from django.db import models
+from django.db.models import Count, Sum, Q, F, Case, When, Value
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -13,22 +14,6 @@ from django.urls import reverse_lazy
 from orders.models import Order
 from catalog.models import Product
 from .models import OrderStatusHistory, Shipment
-
-
-from decimal import Decimal
-from datetime import timedelta
-from django.db.models import Count, Sum, Q, F
-from django.utils import timezone
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import ListView, DetailView, View
-from django.http import JsonResponse, HttpResponse
-from django.core.paginator import Paginator
-from django.db.models.functions import TruncDate, TruncMonth
-from django.urls import reverse_lazy
-from orders.models import Order
-from catalog.models import Product
 from .models import OrderStatusHistory, Shipment
 
 
@@ -279,9 +264,14 @@ class FinancialView(ManagerRequiredMixin, View):
         ).order_by('-revenue')
 
         # Por canal
-        by_channel = qs.values(
-            channel=F('user__isnull')
-        ).annotate(
+        by_channel = qs.annotate(
+            channel=Case(
+                When(user__isnull=True, then=Value('Site')),
+                When(user__isnull=False, then=Value('PDV')),
+                default=Value('Desconhecido'),
+                output_field=models.CharField()
+            )
+        ).values('channel').annotate(
             count=Count('id'),
             revenue=Sum(F('items__price') * F('items__quantity') + F('shipping_cost'))
         )
