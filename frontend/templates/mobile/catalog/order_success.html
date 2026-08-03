@@ -1,0 +1,56 @@
+{% extends 'mobile/base.html' %}
+{% load static %}
+{% block title %}Pedido Realizado - M2 Moda Masculina{% endblock %}
+
+{% block mobile_content %}
+<div class="mobile-section" style="margin-top: 40px;">
+    <div class="mobile-empty">
+        <i class="fas fa-check-circle" style="color: #28a745; font-size: 4rem; margin-bottom: 16px;"></i>
+        <h2 style="font-size: 1.3rem; font-weight: 800; margin: 0 0 8px;">Pedido Realizado!</h2>
+        <p style="color: #6c757d; margin: 0 0 24px;">Obrigado pela sua compra.</p>
+    </div>
+</div>
+
+<div class="mobile-card" style="margin: 0 16px;">
+    <div class="mobile-card-body">
+        <div class="summary-row">
+            <span>Pedido</span>
+            <span>#{{ order.id }}</span>
+        </div>
+        <div class="summary-row">
+            <span>Data</span>
+            <span>{{ order.created_at|date:"d/m/Y H:i" }}</span>
+        </div>
+        <div class="summary-row">
+            <span>Status</span>
+            <span>{{ order.get_status_display }}</span>
+        </div>
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0;">
+            {% for item in order.items.all %}
+            <div class="summary-row">
+                <span>{{ item.product.name }} x{{ item.quantity }}</span>
+                <span>R$ {{ item.total|floatformat:2 }}</span>
+            </div>
+            {% endfor %}
+            {% if order.shipping_method %}
+            <div class="summary-row">
+                <span>Frete ({{ order.shipping_method }})</span>
+                <span>{% if order.shipping_cost == 0 %}Grátis{% else %}R$ {{ order.shipping_cost|floatformat:2 }}{% endif %}</span>
+            </div>
+            {% endif %}
+            <div class="summary-row summary-total">
+                <span>Total</span>
+                <span>R$ {{ order.total|floatformat:2 }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mobile-section">
+    <a href="{% url 'mobile:home' %}" class="mobile-btn mobile-btn-primary mobile-btn-block" style="margin: 0 16px;">
+        <i class="fas fa-store"></i> Continuar Comprando
+    </a>
+</div>
+{% endblock %}
+
+{% block mobile_fab %}{% endblock %}

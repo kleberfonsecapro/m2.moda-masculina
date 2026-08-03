@@ -1,0 +1,40 @@
+{% extends 'mobile/base.html' %}
+{% load static %}
+{% block title %}Categorias - M2 Moda Masculina{% endblock %}
+
+{% block mobile_content %}
+<div class="mobile-divider"></div>
+
+<div class="mobile-section">
+    <h2 class="mobile-section-title">
+        <i class="fas fa-th-large" style="color: #fd7e14;"></i>
+        Categorias
+    </h2>
+    {% if categories %}
+    <div class="mobile-grid">
+        {% for cat in categories %}
+        <a href="{% url 'mobile:category' cat.slug %}" class="mobile-grid-item">
+            <div class="mobile-grid-image">
+                {% if cat.image %}
+                <img src="{{ cat.image.url }}" alt="{{ cat.name }}" loading="lazy">
+                {% else %}
+                <i class="fas fa-tshirt" style="font-size: 2.5rem; color: #dee2e6; display: block; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;"></i>
+                {% endif %}
+            </div>
+            <div class="mobile-grid-info">
+                <div class="mobile-grid-name">{{ cat.name }}</div>
+                <div class="mobile-grid-price">{{ cat.product_count }} produtos</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="mobile-empty">
+        <i class="fas fa-folder-open"></i>
+        <p>Nenhuma categoria cadastrada</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block mobile_fab %}{% endblock %}

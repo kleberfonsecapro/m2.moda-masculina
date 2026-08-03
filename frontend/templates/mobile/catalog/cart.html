@@ -1,0 +1,270 @@
+{% extends 'mobile/base.html' %}
+{% load static %}
+{% block title %}Carrinho - M2 Moda Masculina{% endblock %}
+
+{% block mobile_content %}
+{% if cart_items %}
+<div class="mobile-divider"></div>
+
+<div class="mobile-section">
+    <h2 class="mobile-section-title">
+        <i class="fas fa-shopping-bag" style="color: #fd7e14;"></i>
+        Carrinho ({{ cart_count }})
+    </h2>
+    <ul class="mobile-list" id="cart-items">
+        {% for item in cart_items %}
+        <li class="mobile-list-item" data-key="{{ item.key }}">
+            <div class="mobile-list-avatar">
+                {% if item.product.image %}
+                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+                {% else %}
+                <i class="fas fa-tshirt"></i>
+                {% endif %}
+            </div>
+            <div class="mobile-list-content">
+                <div class="mobile-list-title">{{ item.product.name }}</div>
+                <div class="mobile-list-subtitle">
+                    {% if item.variant %}{{ item.variant.size }}{% else %}Tamanho único{% endif %}
+                    {% if item.product.code %} · {{ item.product.code }}{% endif %}
+                </div>
+                <div class="mobile-qty-selector" style="margin-top: 8px;" role="group" aria-label="Quantidade de {{ item.product.name }}">
+                    <button type="button" class="mobile-qty-btn qty-down" data-key="{{ item.key }}">−</button>
+                    <span class="mobile-qty-value">{{ item.quantity }}</span>
+                    <button type="button" class="mobile-qty-btn qty-up" data-key="{{ item.key }}">+</button>
+                </div>
+            </div>
+            <div class="mobile-list-meta">
+                <div class="mobile-list-price">R$ {{ item.total|floatformat:2 }}</div>
+                <button type="button" class="mobile-icon-btn remove-item" data-key="{{ item.key }}" style="margin-top: 8px; color: #dc3545; background: transparent; width: 36px; height: 36px;" aria-label="Remover">
+                    <i class="fas fa-trash" style="font-size: 1rem;"></i>
+                </button>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="mobile-divider"></div>
+
+<div class="mobile-section">
+    <div class="mobile-card" style="margin: 0 16px;">
+        <div class="mobile-card-body">
+            <div class="mobile-shipping-calculator" id="shipping-calculator">
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label"><i class="fas fa-map-marker-alt" style="color: #fd7e14; margin-right: 6px;"></i> Calcular Frete</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="cep-input" class="mobile-form-control" placeholder="CEP" style="flex: 1; text-align: center; letter-spacing: 2px;" maxlength="9" inputmode="numeric">
+                        <button type="button" class="mobile-btn mobile-btn-primary" id="calc-shipping" style="flex: 0 0 auto; min-width: 100px;">Calcular</button>
+                    </div>
+                </div>
+                <div id="shipping-options" style="display: none; margin-top: 12px;"></div>
+                <div id="shipping-error" class="mobile-toast toast-error" style="display: none; position: static; margin: 12px 0 0; box-shadow: none; border-left-color: #dc3545;"></div>
+            </div>
+
+            <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #f0f0f0;">
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span id="subtotal" data-value="{{ cart_total }}">R$ {{ cart_total|floatformat:2 }}</span>
+                </div>
+                <div class="summary-row" id="shipping-row" style="display: none;">
+                    <span>Frete (<span id="shipping-method"></span>)</span>
+                    <span id="shipping-cost">R$ 0,00</span>
+                </div>
+                <div class="summary-row summary-total">
+                    <span>Total</span>
+                    <span id="total" data-value="{{ cart_total }}">R$ {{ cart_total|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mobile-divider"></div>
+
+<div class="mobile-section">
+    <a href="{% url 'mobile:checkout' %}" class="mobile-btn mobile-btn-primary mobile-btn-block" id="checkout-btn">
+        <i class="fas fa-credit-card"></i> Finalizar Compra
+    </a>
+    <a href="{% url 'mobile:home' %}" class="mobile-btn mobile-btn-outline mobile-btn-block" style="margin-top: 8px;">
+        <i class="fas fa-arrow-left"></i> Continuar Comprando
+    </a>
+</div>
+
+{% else %}
+<div class="mobile-section" style="margin-top: 60px;">
+    <div class="mobile-empty">
+        <i class="fas fa-shopping-bag"></i>
+        <p>Seu carrinho está vazio</p>
+        <a href="{% url 'mobile:home' %}" class="mobile-btn mobile-btn-primary" style="width: auto; margin-top: 16px;">
+            <i class="fas fa-store"></i> Ir às Compras
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block mobile_fab %}{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const COOKIE_NAME = 'csrftoken';
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function showToast(msg, type) {
+        const container = document.getElementById('mobile-toasts') || createToastContainer();
+        const toast = document.createElement('div');
+        toast.className = `mobile-toast toast-${type}`;
+        toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i><span>${msg}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+    function createToastContainer() {
+        const container = document.createElement('div');
+        container.id = 'mobile-toasts';
+        container.className = 'mobile-toasts';
+        document.body.appendChild(container);
+        return container;
+    }
+
+    function formatBRL(value) {
+        return 'R$ ' + parseFloat(value).toFixed(2).replace('.', ',');
+    }
+
+    function updateTotals() {
+        const subtotal = parseFloat(document.getElementById('subtotal').dataset.value || '0');
+        const shipping = parseFloat(document.getElementById('shipping-cost').dataset.value || '0');
+        const total = subtotal + shipping;
+        const totalEl = document.getElementById('total');
+        totalEl.textContent = formatBRL(total);
+        totalEl.dataset.value = total.toFixed(2);
+    }
+
+    function updateCartBadge(count) {
+        const badges = document.querySelectorAll('.mobile-badge, .mobile-nav-badge');
+        badges.forEach(b => {
+            if (count > 0) { b.textContent = count; b.style.display = 'flex'; }
+            else { b.style.display = 'none'; }
+        });
+    }
+
+    function updateItem(key, action) {
+        fetch('{% url "catalog:update_cart" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie(COOKIE_NAME) },
+            body: JSON.stringify({ key: key, action: action })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { showToast(data.error, 'error'); return; }
+            updateCartBadge(data.cart_count);
+            location.reload();
+        })
+        .catch(() => showToast('Erro ao atualizar', 'error'));
+    }
+
+    document.querySelectorAll('.qty-up').forEach(btn => {
+        btn.addEventListener('click', () => updateItem(btn.dataset.key, 'increase'));
+    });
+    document.querySelectorAll('.qty-down').forEach(btn => {
+        btn.addEventListener('click', () => updateItem(btn.dataset.key, 'decrease'));
+    });
+    document.querySelectorAll('.remove-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (confirm('Remover item do carrinho?')) updateItem(btn.dataset.key, 'remove');
+        });
+    });
+
+    document.getElementById('calc-shipping')?.addEventListener('click', () => {
+        const cep = document.getElementById('cep-input').value.replace(/\D/g, '');
+        if (cep.length !== 8) { showToast('CEP inválido', 'error'); return; }
+        calcShipping(cep);
+    });
+
+    document.getElementById('cep-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.getElementById('calc-shipping').click();
+    });
+
+    document.getElementById('cep-input')?.addEventListener('input', (e) => {
+        let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+        if (v.length > 5) v = v.replace(/(\d{5})(\d{1,3})/, '$1-$2');
+        e.target.value = v;
+    });
+
+    async function calcShipping(cep) {
+        const btn = document.getElementById('calc-shipping');
+        const optionsEl = document.getElementById('shipping-options');
+        const errorEl = document.getElementById('shipping-error');
+        optionsEl.style.display = 'none';
+        optionsEl.innerHTML = '';
+        errorEl.style.display = 'none';
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            const response = await fetch('{% url "shipping:quote" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie(COOKIE_NAME) },
+                body: JSON.stringify({ cep, subtotal: document.getElementById('subtotal').dataset.value })
+            });
+            const data = await response.json();
+            if (data.error) { errorEl.textContent = data.error; errorEl.style.display = 'flex'; return; }
+            if (!data.options || data.options.length === 0) { errorEl.textContent = 'Nenhuma opção de frete'; errorEl.style.display = 'flex'; return; }
+
+            data.options.forEach((opt, i) => {
+                const el = document.createElement('label');
+                el.style.cssText = 'display:flex;align-items:center;padding:12px;border:2px solid #dee2e6;border-radius:10px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;';
+                el.innerHTML = `
+                    <input type="radio" name="shipping" value="${opt.name}" ${i===0?'checked':''} style="width:20px;height:20px;accent-color:#fd7e14;margin-right:12px;">
+                    <div style="flex:1;">
+                        <div style="font-weight:600;">${opt.name}</div>
+                    </div>
+                    <div style="font-weight:700;color:#fd7e14;">${parseFloat(opt.value) === 0 ? 'Grátis' : formatBRL(opt.value)}</div>
+                `;
+                el.querySelector('input').addEventListener('change', () => selectShipping(cep, opt));
+                optionsEl.appendChild(el);
+            });
+            optionsEl.style.display = 'block';
+            selectShipping(cep, data.options[0]);
+        } catch (e) {
+            errorEl.textContent = 'Erro ao calcular frete';
+            errorEl.style.display = 'flex';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Calcular';
+        }
+    }
+
+    function selectShipping(cep, opt) {
+        fetch('{% url "catalog:select_shipping" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie(COOKIE_NAME) },
+            body: JSON.stringify({ cep, method: opt.name })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { showToast(data.error, 'error'); return; }
+            document.getElementById('shipping-row').style.display = 'flex';
+            document.getElementById('shipping-method').textContent = data.shipping.method;
+            document.getElementById('shipping-cost').textContent = parseFloat(data.shipping.value) === 0 ? 'Grátis' : formatBRL(data.shipping.value);
+            document.getElementById('shipping-cost').dataset.value = data.shipping.value;
+            updateTotals();
+        })
+        .catch(() => showToast('Erro ao selecionar frete', 'error'));
+    }
+})();
+</script>
+{% endblock %}

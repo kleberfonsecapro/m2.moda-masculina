@@ -1,0 +1,260 @@
+{% extends 'mobile/base.html' %}
+{% load static %}
+{% block title %}{{ product.name }} - M2 Moda Masculina{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mobile-swipe-gallery {
+        position: relative;
+        width: 100%;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .mobile-swipe-gallery::-webkit-scrollbar { display: none; }
+    .mobile-swipe-slide {
+        flex: 0 0 100%;
+        scroll-snap-align: center;
+        aspect-ratio: 1;
+    }
+    .mobile-swipe-slide img { width: 100%; height: 100%; object-fit: cover; }
+    .mobile-swipe-dots {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        padding: 12px 0;
+    }
+    .mobile-swipe-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #dee2e6; transition: all 0.2s;
+    }
+    .mobile-swipe-dot.active { background: #fd7e14; width: 20px; border-radius: 4px; }
+    .mobile-sticky-atc {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: #fff; border-top: 1px solid #e9ecef;
+        padding: 12px 16px calc(12px + var(--safe-bottom));
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+        z-index: 900; display: flex; gap: 12px; align-items: center;
+    }
+    .mobile-sticky-atc .mobile-qty-selector { flex: 1; max-width: 140px; }
+    .mobile-sticky-atc .mobile-btn { flex: 2; }
+    @media (min-width: 480px) {
+        .mobile-sticky-atc { max-width: 480px; margin: 0 auto; border-radius: 16px 16px 0 0; }
+    }
+</style>
+{% endblock %}
+
+{% block mobile_content %}
+<div class="mobile-swipe-gallery" id="product-gallery" role="region" aria-label="Imagens do produto">
+    {% if product.image %}
+    <div class="mobile-swipe-slide"><img src="{{ product.image.url }}" alt="{{ product.name }}"></div>
+    {% endif %}
+    {% if product.secondary_image %}
+    <div class="mobile-swipe-slide"><img src="{{ product.secondary_image.url }}" alt="{{ product.name }} - 2"></div>
+    {% endif %}
+    {% if not product.image %}
+    <div class="mobile-swipe-slide" style="display: flex; align-items: center; justify-content: center; background: #f5f5f5; color: #dee2e6;">
+        <i class="fas fa-image" style="font-size: 3rem;"></i>
+    </div>
+    {% endif %}
+</div>
+
+{% if product.image and product.secondary_image %}
+<div class="mobile-swipe-dots" id="gallery-dots" aria-label="Indicadores de imagem">
+    <span class="mobile-swipe-dot active" data-index="0"></span>
+    <span class="mobile-swipe-dot" data-index="1"></span>
+</div>
+{% endif %}
+
+<div class="mobile-product-detail-info">
+    <div class="mobile-product-category">{{ product.category.name }}</div>
+    <h1 class="mobile-product-name">{{ product.name }}</h1>
+    <div class="mobile-product-code">Código: {{ product.code }}</div>
+    <div class="mobile-product-price">
+        {% if product.promotional_price %}
+        R$ {{ product.promotional_price|floatformat:2 }}
+        <span class="mobile-product-old-price">R$ {{ product.price|floatformat:2 }}</span>
+        {% else %}
+        R$ {{ product.price|floatformat:2 }}
+        {% endif %}
+    </div>
+    {% if product.promotional_price %}
+    <div style="margin-top: 8px; font-size: 0.8rem; color: #28a745; font-weight: 600;">
+        <i class="fas fa-tag"></i> {{ product.discount_percentage }}% OFF
+    </div>
+    {% endif %}
+
+    {% if product.description %}
+    <div class="mobile-product-description">{{ product.description|linebreaksbr }}</div>
+    {% endif %}
+
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0;">
+        <div class="mobile-form-label">Tamanho</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+            {% for variant in product.variants.all %}
+            <button type="button" class="mobile-size-btn" data-variant-id="{{ variant.id }}" data-price="{{ variant.price }}" data-stock="{{ variant.stock }}" style="padding: 10px 16px; border: 2px solid #dee2e6; border-radius: 10px; background: #fff; color: #1a1a2e; font-weight: 600; font-size: 0.9rem; min-height: 44px; {% if variant.stock == 0 %}opacity: 0.4;{% endif %}">
+                {{ variant.size }}
+                {% if variant.stock > 0 and variant.stock <= 5 %}<span style="font-size: 0.7rem; color: #ffc107; margin-left: 4px;">({{ variant.stock }})</span>{% endif %}
+            </button>
+            {% empty %}
+            <span style="color: #6c757d; font-size: 0.9rem;">Tamanho único</span>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if shipping_config %}
+    <div style="margin-top: 16px; padding: 16px; background: #f8f9fa; border-radius: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #495057;">
+            <i class="fas fa-truck" style="color: #fd7e14;"></i>
+            <span>Frete grátis acima de R$ {{ shipping_config.frete_gratis_acima_de|floatformat:2 }}</span>
+        </div>
+        <div style="margin-top: 8px; font-size: 0.8rem; color: #6c757d;">
+            <i class="fas fa-info-circle"></i> Calcule o frete no carrinho inserindo seu CEP
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="mobile-sticky-atc" id="sticky-atc">
+    <div class="mobile-qty-selector" role="group" aria-label="Quantidade">
+        <button type="button" class="mobile-qty-btn" id="qty-down" aria-label="Diminuir">−</button>
+        <span class="mobile-qty-value" id="qty-value">1</span>
+        <button type="button" class="mobile-qty-btn" id="qty-up" aria-label="Aumentar">+</button>
+    </div>
+    <button type="button" class="mobile-btn mobile-btn-primary" id="add-to-cart" data-product-id="{{ product.id }}" data-variant-id="">
+        <i class="fas fa-shopping-bag"></i> Adicionar ao Carrinho
+    </button>
+</div>
+{% endblock %}
+
+{% block mobile_fab %}{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const gallery = document.getElementById('product-gallery');
+    const dots = document.querySelectorAll('#gallery-dots .mobile-swipe-dot');
+    let currentSlide = 0;
+
+    if (gallery && dots.length) {
+        gallery.addEventListener('scroll', () => {
+            const slideWidth = gallery.clientWidth;
+            const newSlide = Math.round(gallery.scrollLeft / slideWidth);
+            if (newSlide !== currentSlide) {
+                currentSlide = newSlide;
+                dots.forEach((dot, i) => dot.classList.toggle('active', i === currentSlide));
+            }
+        }, { passive: true });
+
+        dots.forEach((dot, i) => {
+            dot.addEventListener('click', () => {
+                gallery.scrollTo({ left: i * gallery.clientWidth, behavior: 'smooth' });
+            });
+        });
+    }
+
+    const sizeBtns = document.querySelectorAll('.mobile-size-btn');
+    const addToCartBtn = document.getElementById('add-to-cart');
+    let selectedVariantId = '';
+    let selectedPrice = 0;
+
+    sizeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.style.opacity === '0.4') return;
+            sizeBtns.forEach(b => b.style.borderColor = '#dee2e6');
+            btn.style.borderColor = '#fd7e14';
+            selectedVariantId = btn.dataset.variantId;
+            selectedPrice = parseFloat(btn.dataset.price);
+            addToCartBtn.dataset.variantId = selectedVariantId;
+        });
+    });
+
+    if (sizeBtns.length === 0) {
+        addToCartBtn.dataset.variantId = '';
+    }
+
+    const qtyValue = document.getElementById('qty-value');
+    let qty = 1;
+
+    document.getElementById('qty-down').addEventListener('click', () => {
+        if (qty > 1) { qty--; qtyValue.textContent = qty; }
+    });
+    document.getElementById('qty-up').addEventListener('click', () => {
+        qty++; qtyValue.textContent = qty;
+    });
+
+    addToCartBtn.addEventListener('click', async () => {
+        const btn = addToCartBtn;
+        const productId = btn.dataset.productId;
+        const variantId = btn.dataset.variantId || null;
+        const originalHtml = btn.innerHTML;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adicionando...';
+
+        try {
+            const response = await fetch('{% url "catalog:add_to_cart" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    product_id: productId,
+                    variant_id: variantId,
+                    quantity: qty
+                })
+            });
+            const data = await response.json();
+            if (data.error) {
+                showToast(data.error, 'error');
+            } else {
+                showToast('Adicionado ao carrinho!', 'success');
+                setTimeout(() => {
+                    window.location.href = '{% url "mobile:cart" %}';
+                }, 800);
+            }
+        } catch (e) {
+            showToast('Erro ao adicionar', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function showToast(msg, type) {
+        const container = document.getElementById('mobile-toasts') || createToastContainer();
+        const toast = document.createElement('div');
+        toast.className = `mobile-toast toast-${type}`;
+        toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i><span>${msg}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    function createToastContainer() {
+        const container = document.createElement('div');
+        container.id = 'mobile-toasts';
+        container.className = 'mobile-toasts';
+        document.body.appendChild(container);
+        return container;
+    }
+})();
+</script>
+{% endblock %}

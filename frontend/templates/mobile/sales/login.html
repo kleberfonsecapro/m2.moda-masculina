@@ -1,0 +1,156 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>M2 Moda Masculina — Acesso Vendas</title>
+    <link rel="icon" type="image/jpeg" href="{% static 'images/logo-m2.jpg' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/logo-m2.jpg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/mobile/app.css' %}">
+    <style>
+        .mobile-login-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #1a1a2e;
+        }
+        .mobile-login-header {
+            padding: calc(var(--safe-top) + 24px) 24px 16px;
+            text-align: center;
+        }
+        .mobile-login-logo {
+            width: 80px; height: 80px; border-radius: 50%;
+            margin: 0 auto 20px; border: 3px solid #fd7e14;
+            box-shadow: 0 8px 24px rgba(253, 126, 20, 0.3);
+        }
+        .mobile-login-title { color: #fff; font-size: 1.4rem; font-weight: 800; margin: 0 0 4px; letter-spacing: 0.5px; }
+        .mobile-login-subtitle { color: rgba(255,255,255,0.6); font-size: 0.9rem; margin: 0; }
+        .mobile-login-form { flex: 1; display: flex; flex-direction: column; padding: 24px; background: #fff; border-radius: 24px 24px 0 0; margin-top: -12px; }
+        .mobile-login-group { margin-bottom: 20px; }
+        .mobile-login-label { display: block; font-size: 0.8rem; font-weight: 600; color: #495057; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .mobile-login-input { width: 100%; padding: 16px; font-size: 1rem; border: 2px solid #e9ecef; border-radius: 12px; background: #fafafa; color: #1a1a2e; box-sizing: border-box; transition: all 0.15s; }
+        .mobile-login-input:focus { outline: none; border-color: #fd7e14; background: #fff; box-shadow: 0 0 0 4px rgba(253, 126, 20, 0.1); }
+        .mobile-login-error { color: #dc3545; font-size: 0.8rem; margin-top: 6px; display: none; }
+        .mobile-login-error.visible { display: block; }
+        .mobile-login-btn { width: 100%; padding: 16px; font-size: 1rem; font-weight: 700; border: none; border-radius: 12px; background: #fd7e14; color: #fff; margin-top: 8px; min-height: 52px; transition: all 0.15s; }
+        .mobile-login-btn:active { background: #e86c0e; transform: scale(0.98); }
+        .mobile-login-btn:disabled { opacity: 0.6; }
+        .mobile-login-footer { padding: 24px; text-align: center; }
+        .mobile-login-link { color: rgba(255,255,255,0.7); font-size: 0.85rem; text-decoration: none; }
+        .mobile-login-link:active { color: #fd7e14; }
+    </style>
+</head>
+<body>
+    <div class="mobile-login-page">
+        <header class="mobile-login-header">
+            <img src="{% static 'images/logo-m2.jpg' %}" alt="M2 Moda Masculina" class="mobile-login-logo">
+            <h1 class="mobile-login-title"><i class="fas fa-cash-register" style="color: #fd7e14; margin-right: 8px;"></i> Vendas</h1>
+            <p class="mobile-login-subtitle">Painel de Vendas no Balcão</p>
+        </header>
+
+        <main class="mobile-login-form">
+            {% if form.non_field_errors %}
+            <div class="mobile-login-error visible" role="alert">
+                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="post" id="login-form" novalidate>
+                {% csrf_token %}
+                <div class="mobile-login-group">
+                    <label for="id_username" class="mobile-login-label"><i class="fas fa-user" style="margin-right: 6px;"></i> Usuário</label>
+                    <input type="text" name="username" id="id_username" class="mobile-login-input" required autofocus autocomplete="username" placeholder="Digite seu usuário">
+                    {% if form.username.errors %}
+                    <div class="mobile-login-error visible">{{ form.username.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mobile-login-group">
+                    <label for="id_password" class="mobile-login-label"><i class="fas fa-lock" style="margin-right: 6px;"></i> Senha</label>
+                    <input type="password" name="password" id="id_password" class="mobile-login-input" required autocomplete="current-password" placeholder="Digite sua senha">
+                    {% if form.password.errors %}
+                    <div class="mobile-login-error visible">{{ form.password.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="mobile-login-btn" id="login-btn">
+                    <i class="fas fa-sign-in-alt" style="margin-right: 8px;"></i> Entrar
+                </button>
+            </form>
+        </main>
+
+        <footer class="mobile-login-footer">
+            <a href="{% url 'mobile:home' %}" class="mobile-login-link">
+                <i class="fas fa-arrow-left" style="margin-right: 6px;"></i> Voltar à Loja
+            </a>
+        </footer>
+    </div>
+
+    <script>
+    (function() {
+        const form = document.getElementById('login-form');
+        const btn = document.getElementById('login-btn');
+        const inputs = form.querySelectorAll('.mobile-login-input');
+
+        inputs.forEach(input => {
+            input.addEventListener('input', () => {
+                const error = input.parentElement.querySelector('.mobile-login-error');
+                if (error) error.classList.remove('visible');
+            });
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = form.username.value.trim();
+            const password = form.password.value;
+
+            if (!username || !password) {
+                showError('Preencha todos os campos');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
+
+            const formData = new FormData(form);
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    const html = await response.text();
+                    if (html.includes('Usuário ou senha inválidos') || html.includes('errorlist')) {
+                        showError('Usuário ou senha inválidos');
+                    } else {
+                        window.location.href = '{% url "mobile:sales_page" %}';
+                    }
+                }
+            } catch (err) {
+                showError('Erro de conexão. Tente novamente.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sign-in-alt" style="margin-right: 8px;"></i> Entrar';
+            }
+        });
+
+        function showError(msg) {
+            const errors = form.querySelectorAll('.mobile-login-error');
+            errors.forEach(el => { el.textContent = msg; el.classList.add('visible'); });
+            setTimeout(() => errors.forEach(el => el.classList.remove('visible')), 5000);
+        }
+    })();
+    </script>
+</body>
+</html>

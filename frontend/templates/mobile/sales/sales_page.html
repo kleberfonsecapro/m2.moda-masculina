@@ -1,0 +1,636 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>Venda no Balcão - M2</title>
+    <link rel="icon" type="image/jpeg" href="{% static 'images/logo-m2.jpg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/mobile/app.css' %}">
+    <style>
+        body { background: #1a1a2e; }
+        .pdv-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: calc(var(--safe-top) + 16px) 16px 12px; color: #fff;
+        }
+        .pdv-header-left { display: flex; align-items: center; gap: 10px; }
+        .pdv-logo { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; }
+        .pdv-header-title { font-size: 1rem; font-weight: 800; line-height: 1.2; }
+        .pdv-header-sub { font-size: 0.72rem; color: rgba(255,255,255,0.55); font-weight: 500; }
+        .pdv-icon-btn {
+            width: 40px; height: 40px; border-radius: 12px; border: none;
+            background: rgba(255,255,255,0.1); color: #fff; font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .pdv-scan-card {
+            background: rgba(255,255,255,0.06); border-radius: 16px;
+            margin: 8px 16px 0; padding: 12px;
+        }
+        .pdv-input-row { display: flex; gap: 8px; }
+        .pdv-input {
+            flex: 1; padding: 14px 16px; border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 12px; background: rgba(0,0,0,0.3); color: #fff;
+            font-size: 1rem; letter-spacing: 2px; text-transform: uppercase;
+            font-family: inherit; min-width: 0;
+        }
+        .pdv-input:focus { outline: none; border-color: #fd7e14; }
+        .pdv-scan-btn {
+            width: 52px; border: none; border-radius: 12px; background: #fd7e14;
+            color: #fff; font-size: 1.2rem; flex-shrink: 0;
+        }
+        .pdv-scan-btn:active { background: #e86c0e; }
+        .pdv-scanner { display: none; margin-top: 12px; }
+        .pdv-scanner.active { display: block; }
+        .pdv-scanner video { border-radius: 12px; }
+        .pdv-status {
+            min-height: 20px; margin: 8px 4px 0; font-size: 0.8rem;
+            color: rgba(255,255,255,0.6); text-align: center;
+        }
+        .pdv-status.success { color: #28a745; }
+        .pdv-status.error { color: #dc3545; }
+        .pdv-cart { margin: 8px 16px; }
+        .pdv-cart-title {
+            color: #fff; font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px;
+        }
+        .pdv-cart-count {
+            background: #fd7e14; color: #fff; font-size: 0.7rem; font-weight: 800;
+            padding: 2px 10px; border-radius: 20px;
+        }
+        .pdv-cart-list { display: flex; flex-direction: column; gap: 10px; }
+        .pdv-cart-item {
+            display: flex; gap: 10px; align-items: center; padding: 12px;
+            background: rgba(255,255,255,0.06); border-radius: 14px;
+        }
+        .pdv-cart-item-img { width: 46px; height: 46px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+        .pdv-cart-item-info { flex: 1; min-width: 0; }
+        .pdv-cart-item-name { color: #fff; font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pdv-cart-item-code { color: rgba(255,255,255,0.45); font-size: 0.7rem; }
+        .pdv-qty { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+        .pdv-qty button {
+            width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);
+            background: transparent; color: #fff; font-size: 0.9rem; line-height: 1;
+        }
+        .pdv-qty button:active { border-color: #fd7e14; color: #fd7e14; }
+        .pdv-qty span { min-width: 20px; text-align: center; color: #fff; font-weight: 700; font-size: 0.9rem; }
+        .pdv-cart-item-price { color: #fd7e14; font-weight: 800; font-size: 0.85rem; text-align: right; }
+        .pdv-cart-item-remove { color: rgba(255,255,255,0.4); font-size: 1rem; padding: 6px; }
+        .pdv-empty { text-align: center; color: rgba(255,255,255,0.4); padding: 32px 0; }
+        .pdv-empty i { font-size: 2rem; margin-bottom: 8px; color: rgba(255,255,255,0.2); }
+        .pdv-checkout-bar {
+            position: fixed; left: 0; right: 0; bottom: 0;
+            background: rgba(26,26,46,0.97); backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding: 12px 16px calc(12px + var(--safe-bottom));
+            display: flex; align-items: center; gap: 14px; z-index: 900;
+        }
+        .pdv-checkout-total { flex: 1; }
+        .pdv-checkout-total span { display: block; color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; }
+        .pdv-checkout-total strong { color: #fff; font-size: 1.3rem; }
+        .pdv-checkout-btn {
+            padding: 14px 22px; border: none; border-radius: 12px;
+            background: #fd7e14; color: #fff; font-weight: 800; font-size: 0.95rem;
+        }
+        .pdv-checkout-btn:disabled { opacity: 0.4; }
+        .pdv-sheet {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            display: none; align-items: flex-end; z-index: 9999;
+        }
+        .pdv-sheet.open { display: flex; }
+        .pdv-sheet-box {
+            width: 100%; background: #1a1a2e; border-radius: 20px 20px 0 0;
+            padding: 24px 20px calc(24px + var(--safe-bottom));
+            max-height: 90vh; overflow-y: auto;
+        }
+        .pdv-sheet-title { color: #fff; font-size: 1.05rem; font-weight: 800; margin: 0 0 16px; display: flex; align-items: center; gap: 10px; }
+        .pdv-field { margin-bottom: 12px; }
+        .pdv-field label {
+            display: block; color: rgba(255,255,255,0.5); font-size: 0.7rem;
+            text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 6px;
+        }
+        .pdv-field input {
+            width: 100%; box-sizing: border-box; padding: 14px 14px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3);
+            color: #fff; font-family: inherit; font-size: 0.95rem;
+        }
+        .pdv-field input:focus { outline: none; border-color: #fd7e14; }
+        .pdv-payment { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0 16px; }
+        .pdv-payment-option {
+            background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.12);
+            border-radius: 12px; padding: 16px 8px; text-align: center; color: #fff; cursor: pointer;
+        }
+        .pdv-payment-option i { font-size: 1.4rem; color: #fd7e14; margin-bottom: 6px; display: block; }
+        .pdv-payment-option span { font-size: 0.8rem; font-weight: 700; }
+        .pdv-payment-option.selected { border-color: #fd7e14; background: rgba(253,126,20,0.12); }
+        .pdv-sheet-total {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 0; margin: 8px 0 16px; border-top: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            color: #fff; font-size: 1.15rem; font-weight: 800;
+        }
+        .pdv-sheet-total span:last-child { color: #fd7e14; }
+        .pdv-btn {
+            flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: 700; font-size: 0.95rem;
+        }
+        .pdv-btn-cancel { background: rgba(255,255,255,0.1); color: #fff; }
+        .pdv-btn-confirm { background: #fd7e14; color: #fff; }
+        .pdv-success-icon { text-align: center; color: #28a745; font-size: 3.5rem; margin-bottom: 12px; }
+        .pdv-success-row { display: flex; justify-content: space-between; color: #fff; padding: 6px 0; font-size: 0.85rem; }
+        .pdv-success-row span:last-child { font-weight: 700; }
+        .pdv-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+        @media (min-width: 480px) {
+            .pdv-scanner { max-width: 420px; margin-left: auto; margin-right: auto; }
+            .pdv-cart, .pdv-scan-card { max-width: 480px; margin-left: auto; margin-right: auto; }
+            .pdv-checkout-bar { max-width: 480px; left: 50%; transform: translateX(-50%); border-radius: 16px 16px 0 0; }
+        }
+    </style>
+</head>
+<body>
+    <header class="pdv-header">
+        <div class="pdv-header-left">
+            <img src="{% static 'images/logo-m2.jpg' %}" alt="M2" class="pdv-logo">
+            <div>
+                <div class="pdv-header-title">Venda no Balcão</div>
+                <div class="pdv-header-sub">{{ user.get_full_name|default:user.username }}</div>
+            </div>
+        </div>
+        <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="pdv-icon-btn" aria-label="Sair">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </form>
+    </header>
+
+    <div class="pdv-scan-card">
+        <div class="pdv-input-row">
+            <input type="text" id="code-input" class="pdv-input" placeholder="Código (ex: M2-00001)" autocomplete="off" inputmode="text">
+            <button class="pdv-scan-btn" id="add-code-btn" aria-label="Adicionar produto"><i class="fas fa-plus"></i></button>
+        </div>
+        <div class="pdv-input-row" style="margin-top: 8px;">
+            <button class="pdv-btn pdv-btn-confirm" id="scan-btn" style="width: 100%;">
+                <i class="fas fa-camera"></i> Escanear QR Code
+            </button>
+        </div>
+        <div id="qr-reader" class="pdv-scanner"></div>
+        <div class="pdv-status" id="scan-status">Pronto para escanear ou digitar o código</div>
+    </div>
+
+    <div class="pdv-cart">
+        <h2 class="pdv-cart-title">
+            <i class="fas fa-shopping-bag" style="color: #fd7e14;"></i> Carrinho
+            <span class="pdv-cart-count" id="cart-count" {% if not cart or not cart.items.exists %}style="display:none"{% endif %}>{{ cart.total_items|default:0 }}</span>
+        </h2>
+        <div class="pdv-cart-list" id="cart-items">
+            {% if cart and cart.items.exists %}
+                {% for item in cart.items.all %}
+                <div class="pdv-cart-item" data-item-id="{{ item.id }}">
+                    <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="pdv-cart-item-img">
+                    <div class="pdv-cart-item-info">
+                        <div class="pdv-cart-item-name">{{ item.product.name }}</div>
+                        <div class="pdv-cart-item-code">{{ item.product.code }}</div>
+                        <div class="pdv-qty">
+                            <button class="qty-down" data-item-id="{{ item.id }}">−</button>
+                            <span class="qty-val">{{ item.quantity }}</span>
+                            <button class="qty-up" data-item-id="{{ item.id }}">+</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="pdv-cart-item-price">R$ {{ item.total|floatformat:2 }}</div>
+                        <div style="text-align:right; margin-top: 6px;">
+                            <i class="fas fa-trash pdv-cart-item-remove remove-item" data-item-id="{{ item.id }}"></i>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="pdv-empty" id="cart-empty">
+                <i class="fas fa-shopping-bag"></i>
+                <div>Carrinho vazio</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="pdv-checkout-bar">
+        <div class="pdv-checkout-total">
+            <span>Total</span>
+            <strong id="cart-total">R$ {{ cart.total|floatformat:2|default:'0,00' }}</strong>
+        </div>
+        <button class="pdv-checkout-btn" id="checkout-btn" {% if not cart or not cart.items.exists %}disabled{% endif %}>
+            <i class="fas fa-cash-register"></i> Finalizar
+        </button>
+    </div>
+
+    <div class="pdv-sheet" id="checkout-modal">
+        <div class="pdv-sheet-box">
+            <h2 class="pdv-sheet-title"><i class="fas fa-cash-register" style="color: #fd7e14;"></i> Finalizar Venda</h2>
+            <div class="pdv-field">
+                <label>Cliente (opcional)</label>
+                <input type="text" id="customer-name" value="{{ user.get_full_name|default:'' }}">
+            </div>
+            <div class="pdv-field">
+                <label>Telefone / WhatsApp (opcional)</label>
+                <input type="text" id="customer-phone">
+            </div>
+            <div class="pdv-field">
+                <label>CPF (opcional)</label>
+                <input type="text" id="customer-cpf" maxlength="14" autocomplete="off" inputmode="numeric">
+            </div>
+            <label style="display:block; color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin: 4px 0 8px;">Forma de Pagamento</label>
+            <div class="pdv-payment">
+                <div class="pdv-payment-option selected" data-value="cash">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span>Dinheiro</span>
+                </div>
+                <div class="pdv-payment-option" data-value="card">
+                    <i class="fas fa-credit-card"></i>
+                    <span>Cartão</span>
+                </div>
+                <div class="pdv-payment-option" data-value="pix">
+                    <i class="fas fa-qrcode"></i>
+                    <span>PIX</span>
+                </div>
+                <div class="pdv-payment-option" data-value="other">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Outro</span>
+                </div>
+            </div>
+            <div class="pdv-sheet-total">
+                <span>Total a Pagar</span>
+                <span id="checkout-total">R$ {{ cart.total|floatformat:2|default:'0,00' }}</span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="pdv-btn pdv-btn-cancel" id="cancel-checkout">Cancelar</button>
+                <button class="pdv-btn pdv-btn-confirm" id="confirm-checkout">
+                    <i class="fas fa-check"></i> Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="pdv-sheet" id="success-modal">
+        <div class="pdv-sheet-box" style="text-align:center;">
+            <div class="pdv-success-icon"><i class="fas fa-check-circle"></i></div>
+            <h2 class="pdv-sheet-title" style="justify-content:center;">Venda Realizada!</h2>
+            <div id="success-details" style="text-align:left; margin-top: 16px;"></div>
+            <div class="pdv-actions">
+                <a href="#" id="view-order-btn" target="_blank" rel="noopener noreferrer" class="pdv-btn pdv-btn-confirm" style="text-align:center; text-decoration:none; color:#fff;">
+                    <i class="fas fa-file-invoice"></i> Ver Pedido
+                </a>
+                <button class="pdv-btn pdv-btn-cancel" id="new-sale-btn" style="color:#fff;">
+                    <i class="fas fa-plus"></i> Nova Venda
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div style="height: 96px;"></div>
+
+    <script src="{% static 'js/html5-qrcode.min.js' %}"></script>
+    <script>
+    (function() {
+        const COOKIE_NAME = 'csrftoken';
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const statusEl = document.getElementById('scan-status');
+        function showStatus(msg, type) {
+            if (statusEl) {
+                statusEl.textContent = msg;
+                statusEl.className = 'pdv-status ' + (type || '');
+            }
+            console.log('[QR Scanner]', msg, type ? '(' + type + ')' : '');
+        }
+
+        function addProduct(code) {
+            if (!code) return;
+            showStatus('Adicionando...');
+            fetch('{% url "catalog:sales_add_item" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie(COOKIE_NAME) },
+                body: JSON.stringify({ code: code, quantity: 1 }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) { showStatus(data.error, 'error'); return; }
+                showStatus(data.product.name + ' adicionado!', 'success');
+                location.reload();
+            })
+            .catch(() => showStatus('Erro ao adicionar produto', 'error'));
+        }
+
+        // --- QR Scanner ---
+        let html5QrCode = null;
+        let scannerActive = false;
+        const scanBtn = document.getElementById('scan-btn');
+        const readerEl = document.getElementById('qr-reader');
+
+        function getFacingMode() {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            return isMobile ? 'environment' : 'user';
+        }
+
+        function initScanner() {
+            const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+            const secure = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+            console.log('[QR Scanner] Diagnostics:', {
+                hasMediaDevices, secure, hostname: location.hostname,
+                protocol: location.protocol, isSecureContext: window.isSecureContext,
+            });
+
+            if (!hasMediaDevices) {
+                showStatus('API de câmera não disponível neste navegador', 'error');
+                if (scanBtn) scanBtn.style.display = 'none';
+                return false;
+            }
+            if (!secure) {
+                showStatus('HTTPS necessário para acessar a câmera.', 'error');
+                if (scanBtn) scanBtn.style.display = 'none';
+                return false;
+            }
+            return true;
+        }
+
+        function toggleScanner() {
+            if (!readerEl || !scanBtn) return;
+            if (scannerActive) { stopScanner(); return; }
+            if (!initScanner()) return;
+
+            scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ativando...';
+            scanBtn.disabled = true;
+            readerEl.classList.add('active');
+
+            try {
+                html5QrCode = new Html5Qrcode('qr-reader');
+            } catch (e) {
+                showStatus('Erro ao inicializar scanner', 'error');
+                scanBtn.innerHTML = '<i class="fas fa-camera"></i> Escanear QR Code';
+                scanBtn.disabled = false;
+                readerEl.classList.remove('active');
+                return;
+            }
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 220, height: 220 },
+                formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+                rememberLastUsedCamera: true,
+            };
+
+            html5QrCode.start(
+                { facingMode: getFacingMode() },
+                config,
+                onScanSuccess,
+                onScanFailure,
+            ).then(() => {
+                scannerActive = true;
+                scanBtn.innerHTML = '<i class="fas fa-stop"></i> Parar';
+                scanBtn.disabled = false;
+                showStatus('Scanner ativo — aponte para o QR Code', 'success');
+            }).catch(handleStartError);
+        }
+
+        function handleStartError(err) {
+            readerEl.classList.remove('active');
+            scanBtn.innerHTML = '<i class="fas fa-camera"></i> Escanear QR Code';
+            scanBtn.disabled = false;
+            let msg = 'Erro ao iniciar câmera';
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                msg = 'Permissão de câmera negada. Permita nas configurações.';
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                msg = 'Nenhuma câmera encontrada.';
+            } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                msg = 'Câmera em uso por outro app.';
+            } else if (err.name === 'OverconstrainedError') {
+                showStatus('Câmera traseira indisponível, tentando frontal...');
+                retryWithFallback();
+                return;
+            } else if (err.message) {
+                msg += ': ' + err.message;
+            }
+            showStatus(msg, 'error');
+            console.error('[QR Scanner] Start error:', err);
+        }
+
+        function retryWithFallback() {
+            if (!html5QrCode) return;
+            const config = {
+                fps: 10,
+                qrbox: { width: 220, height: 220 },
+                formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+            };
+            html5QrCode.start({ facingMode: 'user' }, config, onScanSuccess, onScanFailure)
+                .then(() => {
+                    scannerActive = true;
+                    scanBtn.innerHTML = '<i class="fas fa-stop"></i> Parar';
+                    scanBtn.disabled = false;
+                    showStatus('Scanner ativo (câmera frontal)', 'success');
+                })
+                .catch(handleStartError);
+        }
+
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().catch(() => {});
+                html5QrCode = null;
+            }
+            scannerActive = false;
+            if (readerEl) readerEl.classList.remove('active');
+            if (scanBtn) scanBtn.innerHTML = '<i class="fas fa-camera"></i> Escanear QR Code';
+            showStatus('Scanner desligado');
+        }
+
+        function onScanSuccess(decodedText) {
+            if (!scannerActive) return;
+            stopScanner();
+            const codeMatch = decodedText.match(/Código:\s*(M2-\d+)/);
+            const code = codeMatch ? codeMatch[1] : decodedText.trim();
+            showStatus('QR Code lido! Buscando produto...');
+            addProduct(code);
+        }
+
+        function onScanFailure(err) {
+            if (err && err.name !== 'NotReadableError') {
+                console.debug('[QR Scanner] Scan failure:', err);
+            }
+        }
+
+        if (scanBtn) scanBtn.addEventListener('click', toggleScanner);
+        window.addEventListener('beforeunload', stopScanner);
+
+        // --- Manual input ---
+        document.getElementById('add-code-btn').addEventListener('click', function() {
+            const input = document.getElementById('code-input');
+            const code = input.value.trim().toUpperCase();
+            if (!code) { showStatus('Digite um código', 'error'); return; }
+            addProduct(code);
+            input.value = '';
+            input.focus();
+        });
+        document.getElementById('code-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('add-code-btn').click();
+            }
+        });
+
+        // --- Quantity / remove ---
+        document.querySelectorAll('.qty-up').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const itemId = btn.dataset.itemId;
+                const qty = parseInt(btn.parentElement.querySelector('.qty-val').textContent);
+                updateQuantity(itemId, qty + 1);
+            });
+        });
+        document.querySelectorAll('.qty-down').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const itemId = btn.dataset.itemId;
+                const qty = parseInt(btn.parentElement.querySelector('.qty-val').textContent);
+                if (qty <= 1) { removeItem(itemId); } else { updateQuantity(itemId, qty - 1); }
+            });
+        });
+        document.querySelectorAll('.remove-item').forEach(el => {
+            el.addEventListener('click', () => removeItem(el.dataset.itemId));
+        });
+
+        function updateQuantity(itemId, quantity) {
+            fetch('{% url "catalog:sales_update_item" 0 %}'.replace('0', itemId), {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie(COOKIE_NAME) },
+                body: new URLSearchParams({ quantity: quantity }),
+            }).then(r => r.json()).then(data => {
+                if (data.error) { showStatus(data.error, 'error'); return; }
+                location.reload();
+            });
+        }
+        function removeItem(itemId) {
+            fetch('{% url "catalog:sales_remove_item" 0 %}'.replace('0', itemId), {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie(COOKIE_NAME) },
+            }).then(() => location.reload());
+        }
+
+        // --- Payment selection ---
+        document.querySelectorAll('.pdv-payment-option').forEach(el => {
+            el.addEventListener('click', function() {
+                document.querySelectorAll('.pdv-payment-option').forEach(o => o.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+        });
+
+        // --- CPF mask ---
+        document.getElementById('customer-cpf').addEventListener('input', function() {
+            let v = this.value.replace(/\D/g, '').slice(0, 11);
+            if (v.length > 9) {
+                v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+            } else if (v.length > 6) {
+                v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+            } else if (v.length > 3) {
+                v = v.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+            }
+            this.value = v;
+        });
+
+        // --- Checkout ---
+        document.getElementById('checkout-btn').addEventListener('click', function() {
+            if (this.disabled) return;
+            document.getElementById('checkout-modal').classList.add('open');
+        });
+        document.getElementById('cancel-checkout').addEventListener('click', function() {
+            document.getElementById('checkout-modal').classList.remove('open');
+        });
+
+        document.getElementById('confirm-checkout').addEventListener('click', function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+
+            const selected = document.querySelector('.pdv-payment-option.selected');
+            const paymentMethod = selected ? selected.dataset.value : 'cash';
+            const customerName = document.getElementById('customer-name').value.trim();
+            const customerPhone = document.getElementById('customer-phone').value.trim();
+            const customerCpf = document.getElementById('customer-cpf').value.trim();
+
+            fetch('{% url "catalog:sales_checkout" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie(COOKIE_NAME) },
+                body: JSON.stringify({
+                    payment_method: paymentMethod,
+                    customer_name: customerName,
+                    customer_phone: customerPhone,
+                    customer_cpf: customerCpf,
+                }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    showStatus(data.error, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Confirmar';
+                    return;
+                }
+
+                document.getElementById('checkout-modal').classList.remove('open');
+
+                const paymentLabels = { cash: 'Dinheiro', card: 'Cartão', pix: 'PIX', other: 'Outro' };
+                const detailsEl = document.getElementById('success-details');
+                detailsEl.innerHTML = '';
+                const addRow = (label, value) => {
+                    const row = document.createElement('div');
+                    row.className = 'pdv-success-row';
+                    row.innerHTML = '<span>' + label + '</span><span>' + value + '</span>';
+                    detailsEl.appendChild(row);
+                };
+
+                addRow('Pedido', '#' + data.order_id);
+                addRow('Pagamento', paymentLabels[paymentMethod] || paymentMethod);
+                addRow('Cliente', customerName || '—');
+                data.items.forEach(i => addRow(i.name + ' x' + i.qty, 'R$ ' + i.total));
+                addRow('Total', 'R$ ' + data.total);
+
+                document.getElementById('view-order-btn').href = data.redirect;
+                document.getElementById('success-modal').classList.add('open');
+            })
+            .catch(() => {
+                showStatus('Erro ao finalizar venda', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Confirmar';
+            });
+        });
+
+        document.getElementById('new-sale-btn').addEventListener('click', function() {
+            location.reload();
+        });
+
+        // Close sheets on backdrop tap
+        document.querySelectorAll('.pdv-sheet').forEach(sheet => {
+            sheet.addEventListener('click', (e) => {
+                if (e.target === sheet) sheet.classList.remove('open');
+            });
+        });
+    })();
+    </script>
+</body>
+</html>

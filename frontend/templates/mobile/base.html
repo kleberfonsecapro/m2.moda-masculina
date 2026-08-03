@@ -1,0 +1,93 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>{% block title %}M2 Moda Masculina{% endblock %}</title>
+    <link rel="icon" type="image/jpeg" href="{% static 'images/logo-m2.jpg' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/logo-m2.jpg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/mobile/app.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% block mobile_header %}
+    <header class="mobile-header">
+        <a href="{% url 'mobile:home' %}" class="mobile-header-brand" aria-label="Início">
+            <img src="{% static 'images/logo-m2.jpg' %}" alt="M2" class="mobile-logo">
+            <span>M2 Moda Masculina</span>
+        </a>
+        <div class="mobile-header-actions">
+            <a href="{% url 'mobile:cart' %}" class="mobile-icon-btn" aria-label="Carrinho">
+                <i class="fas fa-shopping-bag"></i>
+                {% if cart_count > 0 %}
+                <span class="mobile-badge">{{ cart_count }}</span>
+                {% endif %}
+            </a>
+            <a href="{% url 'mobile:sales_login' %}" class="mobile-icon-btn" aria-label="Vendas">
+                <i class="fas fa-cash-register"></i>
+            </a>
+        </div>
+    </header>
+    {% endblock %}
+
+    <main class="mobile-main" id="mobile-main">
+        {% if messages %}
+        <div class="mobile-toasts" id="mobile-toasts">
+            {% for message in messages %}
+            <div class="mobile-toast toast-{{ message.tags }}" role="alert">
+                <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
+                <span>{{ message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block mobile_content %}{% endblock %}
+    </main>
+
+    {% block mobile_bottom_nav %}
+    <nav class="mobile-bottom-nav" role="navigation" aria-label="Navegação principal">
+        <a href="{% url 'mobile:home' %}" class="mobile-nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-label="Início">
+            <i class="fas fa-home"></i>
+            <span>Início</span>
+        </a>
+        <a href="{% url 'mobile:categories' %}" class="mobile-nav-item {% if request.resolver_match.url_name == 'categories' %}active{% endif %}" data-label="Categorias">
+            <i class="fas fa-th-large"></i>
+            <span>Categorias</span>
+        </a>
+        <a href="{% url 'mobile:cart' %}" class="mobile-nav-item {% if 'carrinho' in request.path %}active{% endif %}" data-label="Carrinho">
+            <i class="fas fa-shopping-bag"></i>
+            <span>Carrinho</span>
+            {% if cart_count > 0 %}
+            <span class="mobile-nav-badge">{{ cart_count }}</span>
+            {% endif %}
+        </a>
+        <a href="{% url 'mobile:sales_login' %}" class="mobile-nav-item {% if 'vendas' in request.path %}active{% endif %}" data-label="Vendas">
+            <i class="fas fa-cash-register"></i>
+            <span>Vendas</span>
+        </a>
+        <a href="{% url 'mobile:profile' %}" class="mobile-nav-item {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" data-label="Perfil">
+            <i class="fas fa-user"></i>
+            <span>Perfil</span>
+        </a>
+    </nav>
+    <div class="mobile-desktop-link">
+        <a href="{% url 'view_desktop' %}"><i class="fas fa-desktop"></i> Versão Desktop</a>
+    </div>
+    {% endblock %}
+
+    {% block mobile_fab %}{% endblock %}
+
+    <script src="{% static 'js/mobile/app.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

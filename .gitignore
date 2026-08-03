@@ -26,3 +26,6 @@ Thumbs.db
 
 # Docker
 .docker/
+
+# Certificados locais de desenvolvimento (gerados com mkcert)
+nginx/certs/

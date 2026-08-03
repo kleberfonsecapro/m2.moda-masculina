@@ -1,5 +1,9 @@
 # Backlog — M2 Moda Masculina
 
+## 🐛 Bugs
+
+- [ ] **Login do PDV mobile não dá feedback de senha inválida** — no `mobile/sales/login.html`, o JS detecta erro de login procurando no HTML retornado as strings `'Usuário ou senha inválidos'` ou `'errorlist'`, mas o `AuthenticationForm` do Django retorna a mensagem padrão "Por favor, entre com um nome de usuário e senha corretos..." e o template renderiza a classe `mobile-login-error`, não `errorlist`. Logo o `else` do JS redireciona para `/m/vendas/` (não logado) e o `login_required` volta para `/m/vendas/entrar/` — usuário vê "nada aconteceu". Fix sugerido: no `else`, verificar `response.ok`/presença de `mobile-login-error.visible` no HTML, ou renderizar a página com o form e deixar o navegador processar a submissão síncrona (fallback nativo). **Reproduzido:** credenciais erradas → sem mensagem, apenas retorno ao form.
+
 ## 🚨 Críticos (antes do deploy)
 
 - [ ] **Remover `.env` do git** — `git rm --cached .env` (já criei `.gitignore`)

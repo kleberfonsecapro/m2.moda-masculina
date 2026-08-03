@@ -236,3 +236,42 @@ Tabela completa do inventário:
 - Total geral do estoque (custo)
 - Destaque visual para estoque baixo (≤5) e zerado
 - Cards de resumo: total de itens e valor total (custo)
+
+### Painel Gerencial
+
+**URL:** `/gerencial/` (requer login de gerente/superuser)
+
+Sistema de gestão administrativa para gerentes:
+
+- **Login exclusivo** em `/gerencial/entrar/` — página limpa, sem header/footer do site
+- **Dashboard** — visão geral com métricas (pedidos pendentes, faturamento, estoque baixo)
+- **Pedidos** — lista paginada com filtros (status, data, busca por cliente/código)
+  - Detalhe do pedido com itens, histórico de status e ações
+  - Atualização de status (Pendente → Confirmado → Enviado → Entregue / Cancelado)
+  - Despacho de pedidos (registro de código de rastreio)
+  - Exportação CSV
+- **Financeiro** — resumo financeiro com faturamento por período, ticket médio, métodos de pagamento
+- **Estoque (Alertas)** — lista de produtos com estoque baixo/zerado para reposição
+- **Permissões** — acesso restrito a usuários no grupo "Gerentes" ou superusers
+
+### Versão Mobile (`/m/`)
+
+Interface mobile-first, separada do desktop, com bottom navigation (Início, Categorias, Carrinho, Vendas, Perfil) e touch-friendly. Acessível via link "Versão Mobile" no rodapé do site ou diretamente em `/m/`:
+
+- **Loja** — home com categorias/destaques/novidades, busca, listagem por categoria, detalhe do produto com galeria e "Adicionar ao Carrinho" fixo, carrinho com calculadora de frete e checkout
+  - `/m/`, `/m/categorias/`, `/m/produtos/`, `/m/categorias/<slug>/`, `/m/produto/<slug>/`, `/m/carrinho/`, `/m/checkout/`
+- **PDV Mobile** — `Venda no Balcão` em `/m/vendas/` (requer login), layout de tela cheia com leitor de QR Code (câmera traseira em celulares, com fallback para frontal), input manual de código e bottom bar de finalização
+- **Login do vendedor** em `/m/vendas/entrar/`
+- **Perfil** em `/m/perfil/` — área do vendedor, acesso ao gerencial (staff) e logout
+
+A loja mobile reutiliza o mesmo carrinho de sessão do desktop (lógica compartilhada em `cart/services.py`), e o PDV mobile reutiliza os mesmos endpoints de venda do PDV desktop — sem duplicação de regras de negócio.
+
+#### Detecção automática de dispositivo
+
+O `DeviceRedirectMiddleware` (`mobile/middleware.py`) detecta o dispositivo pelo `User-Agent` e redireciona automaticamente:
+
+- **Mobile** em URLs desktop → equivalente mobile (`/` → `/m/`, `/produtos/<categoria>/` → `/m/categorias/<categoria>/`, `/vendas/` → `/m/vendas/`, etc.)
+- **Desktop** em URLs `/m/` → equivalente desktop (`/m/` → `/`, `/m/produto/<slug>/` → `/produto/<slug>/`, etc.)
+- **Nunca redireciona**: `POST`, requisições `XHR`, bots/crawlers, `/admin/`, `/gerencial/`, `/accounts/`, `/media/` e `/static/`
+- **Override manual**: links "Versão Mobile"/"Versão Desktop" definem um cookie `view_mode` (1 ano), preservando a escolha do usuário
+- **Query string** é preservada nos redirects

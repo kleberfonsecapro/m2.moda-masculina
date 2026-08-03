@@ -1,0 +1,121 @@
+{% extends 'mobile/base.html' %}
+{% load static %}
+{% block title %}Finalizar Pedido - M2 Moda Masculina{% endblock %}
+
+{% block mobile_content %}
+<div class="mobile-divider"></div>
+
+<div class="mobile-section">
+    <h2 class="mobile-section-title">
+        <i class="fas fa-credit-card" style="color: #fd7e14;"></i>
+        Finalizar Pedido
+    </h2>
+
+    <div class="mobile-card" style="margin: 0 16px;">
+        <div class="mobile-card-body">
+            <form method="post" id="checkout-form" novalidate>
+                {% csrf_token %}
+                {% for field in form %}
+                <div class="mobile-form-group">
+                    <label for="{{ field.id_for_label }}" class="mobile-form-label">
+                        {{ field.label }}
+                    </label>
+                    {{ field }}
+                    {% if field.errors %}
+                    <div class="mobile-toast toast-error" style="position: static; margin-top: 8px; box-shadow: none;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>{{ field.errors.0 }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% if form.non_field_errors %}
+                <div class="mobile-toast toast-error" style="position: static; margin: 8px 0; box-shadow: none;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>{{ form.non_field_errors.0 }}</span>
+                </div>
+                {% endif %}
+                <button type="submit" class="mobile-btn mobile-btn-primary mobile-btn-block" style="margin-top: 8px;">
+                    <i class="fas fa-check"></i> Confirmar Pedido
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="mobile-divider"></div>
+
+<div class="mobile-section">
+    <div class="mobile-card" style="margin: 0 16px;">
+        <div class="mobile-card-body">
+            <h3 class="mobile-form-label" style="margin-bottom: 12px;"><i class="fas fa-receipt"></i> Resumo do Pedido</h3>
+            {% for item in cart_items %}
+            <div class="summary-row">
+                <span>{{ item.product.name }}{% if item.variant %} ({{ item.variant }}){% endif %} x{{ item.quantity }}</span>
+                <span>R$ {{ item.total|floatformat:2 }}</span>
+            </div>
+            {% endfor %}
+            <div class="summary-row">
+                <span>Frete</span>
+                <span>{% if shipping %}{% if shipping.value == "0.00" %}Grátis{% else %}R$ {{ shipping.value }}{% endif %}{% else %}Calcular no carrinho{% endif %}</span>
+            </div>
+            <div class="summary-row summary-total">
+                <span>Total</span>
+                <span>R$ {{ shipping_total|default:cart_total|floatformat:2 }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block mobile_fab %}{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    function getCookie(name) {
+        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        return match ? decodeURIComponent(match[2]) : null;
+    }
+    function maskCep(value) {
+        let v = (value || '').replace(/\D/g, '').slice(0, 8);
+        if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
+        return v;
+    }
+
+    const cepInput = document.getElementById('id_zip_code');
+    if (!cepInput) return;
+
+    cepInput.addEventListener('input', () => { cepInput.value = maskCep(cepInput.value); });
+
+    function fillAddress(data) {
+        if (!data.success) return;
+        const set = (id, value) => {
+            const el = document.getElementById(id);
+            if (el && !el.value.trim()) el.value = value || '';
+        };
+        set('id_address', data.logradouro);
+        set('id_city', data.localidade);
+        set('id_state', data.uf);
+    }
+
+    function lookupCep() {
+        const cep = cepInput.value.replace(/\D/g, '');
+        if (cep.length !== 8) return;
+        fetch('{% url "shipping:cep_lookup" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ cep })
+        })
+        .then(r => r.json())
+        .then(fillAddress)
+        .catch(() => {});
+    }
+
+    cepInput.addEventListener('blur', lookupCep);
+    cepInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); lookupCep(); }
+    });
+})();
+</script>
+{% endblock %}

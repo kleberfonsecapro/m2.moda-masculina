@@ -1,0 +1,54 @@
+{% extends 'mobile/base.html' %}
+{% load static %}
+{% block title %}Perfil - M2 Moda Masculina{% endblock %}
+
+{% block mobile_content %}
+<div class="mobile-divider"></div>
+
+<div class="mobile-section">
+    {% if user.is_authenticated %}
+    <div class="mobile-card" style="margin: 0 16px;">
+        <div class="mobile-card-body" style="text-align: center;">
+            <div style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #fd7e14, #e86c0e); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 12px;">
+                <i class="fas fa-user"></i>
+            </div>
+            <h2 style="margin: 0 0 4px; font-size: 1.2rem; font-weight: 800;">{{ user.first_name|default:user.username }}</h2>
+            <p style="margin: 0 0 16px; color: #6c757d; font-size: 0.9rem;">{{ user.email }}</p>
+
+            <a href="{% url 'mobile:sales_page' %}" class="mobile-btn mobile-btn-primary mobile-btn-block">
+                <i class="fas fa-cash-register"></i> Vendas no Balcão
+            </a>
+            {% if user.is_staff %}
+            <a href="/gerencial/" class="mobile-btn mobile-btn-outline mobile-btn-block" style="margin-top: 8px;">
+                <i class="fas fa-tachometer-alt"></i> Painel Gerencial
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mobile-section">
+        <form method="post" action="{% url 'accounts:logout' %}" style="margin: 0 16px;">
+            {% csrf_token %}
+            <button type="submit" class="mobile-btn mobile-btn-outline mobile-btn-block">
+                <i class="fas fa-sign-out-alt"></i> Sair da Conta
+            </button>
+        </form>
+    </div>
+    {% else %}
+    <div class="mobile-card" style="margin: 0 16px;">
+        <div class="mobile-card-body" style="text-align: center; padding: 32px 16px;">
+            <div style="width: 72px; height: 72px; border-radius: 50%; background: #f8f9fa; color: #adb5bd; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 12px;">
+                <i class="fas fa-user"></i>
+            </div>
+            <h2 style="margin: 0 0 8px; font-size: 1.2rem; font-weight: 800;">Área do Vendedor</h2>
+            <p style="margin: 0 0 16px; color: #6c757d; font-size: 0.9rem;">Acesse o painel de vendas no balcão para registrar produtos via QR Code ou código.</p>
+            <a href="{% url 'mobile:sales_login' %}" class="mobile-btn mobile-btn-primary mobile-btn-block">
+                <i class="fas fa-sign-in-alt"></i> Entrar nas Vendas
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block mobile_fab %}{% endblock %}

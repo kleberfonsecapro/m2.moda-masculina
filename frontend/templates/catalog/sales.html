@@ -561,7 +561,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js" integrity="sha384-BtpfI1RaEH67r6SFt8tRi1x2wcZbsXUanbFmScJEilHlAIDITjtdnge/V7Sgfpgg" crossorigin="anonymous"></script>
+<script src="{% static 'js/html5-qrcode.min.js' %}"></script>
 <script>
 (function() {
   const COOKIE_NAME = 'csrftoken';
@@ -583,8 +583,11 @@
 
   function showStatus(msg, type) {
     const el = document.getElementById('scan-status');
-    el.textContent = msg;
-    el.className = 'scan-status ' + (type || '');
+    if (el) {
+      el.textContent = msg;
+      el.className = 'scan-status ' + (type || '');
+    }
+    console.log('[QR Scanner]', msg, type ? '(' + type + ')' : '');
   }
 
   function addProduct(code) {
@@ -614,30 +617,69 @@
 
   // QR Scanner
   let html5QrCode = null;
-  let scannerRunning = false;
-
-  let scanBtn = document.getElementById('scan-btn');
   let scannerActive = false;
 
+  const scanBtn = document.getElementById('scan-btn');
+  const readerEl = document.getElementById('qr-reader');
+
+  // Feature detection
+  function getFacingMode() {
+    // Mobile: prefer back camera; Desktop: front camera
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return isMobile ? 'environment' : 'user';
+  }
+
+  function initScanner() {
+    const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    const secure = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+    console.log('[QR Scanner] Diagnostics:', {
+      hasMediaDevices,
+      secure,
+      hostname: location.hostname,
+      protocol: location.protocol,
+      isSecureContext: window.isSecureContext,
+      userAgent: navigator.userAgent,
+    });
+
+    if (!hasMediaDevices) {
+      showStatus('API de câmera não disponível neste navegador', 'error');
+      if (scanBtn) scanBtn.style.display = 'none';
+      return false;
+    }
+
+    if (!secure) {
+      showStatus('HTTPS necessário para acessar a câmera. Acesse via https:// ou localhost.', 'error');
+      if (scanBtn) scanBtn.style.display = 'none';
+      return false;
+    }
+
+    return true;
+  }
+
   function toggleScanner() {
-    const readerEl = document.getElementById('qr-reader');
-    if (!readerEl) return;
+    if (!readerEl || !scanBtn) return;
 
     if (scannerActive) {
-      if (html5QrCode) {
-        html5QrCode.stop().catch(() => {});
-      }
-      readerEl.classList.remove('active');
-      scannerActive = false;
-      scannerRunning = false;
-      scanBtn.innerHTML = '<i class="fas fa-camera"></i> Iniciar Scanner';
-      showStatus('Scanner desligado', '');
+      stopScanner();
       return;
     }
 
+    if (!initScanner()) return;
+
     scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ativando câmera...';
+    scanBtn.disabled = true;
     readerEl.classList.add('active');
-    html5QrCode = new Html5Qrcode('qr-reader');
+
+    try {
+      html5QrCode = new Html5Qrcode('qr-reader');
+    } catch (e) {
+      showStatus('Erro ao inicializar scanner: ' + e.message, 'error');
+      scanBtn.innerHTML = '<i class="fas fa-camera"></i> Iniciar Scanner';
+      scanBtn.disabled = false;
+      readerEl.classList.remove('active');
+      return;
+    }
 
     const config = {
       fps: 10,
@@ -645,36 +687,88 @@
       formatsToSupport: [
         Html5QrcodeSupportedFormats.QR_CODE,
       ],
+      rememberLastUsedCamera: true,
     };
 
+    const facingMode = getFacingMode();
+    showStatus('Solicitando permissão de câmera...', '');
+
     html5QrCode.start(
-      { facingMode: 'environment' },
+      { facingMode: facingMode },
       config,
       onScanSuccess,
       onScanFailure,
     ).then(() => {
       scannerActive = true;
-      scannerRunning = true;
       scanBtn.innerHTML = '<i class="fas fa-stop"></i> Parar Scanner';
+      scanBtn.disabled = false;
       showStatus('Scanner ativo — aponte para o QR Code', 'success');
     }).catch(err => {
-      readerEl.classList.remove('active');
-      scanBtn.innerHTML = '<i class="fas fa-camera"></i> Iniciar Scanner';
-      showStatus('Câmera não disponível: ' + err, 'error');
+      handleStartError(err);
     });
   }
 
-  function onScanSuccess(decodedText) {
-    if (!scannerRunning) return;
-    scannerRunning = false;
+  function handleStartError(err) {
+    readerEl.classList.remove('active');
+    scanBtn.innerHTML = '<i class="fas fa-camera"></i> Iniciar Scanner';
+    scanBtn.disabled = false;
 
+    let msg = 'Erro ao iniciar câmera';
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      msg = 'Permissão de câmera negada. Permita nas configurações do navegador e recarregue.';
+    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      msg = 'Nenhuma câmera encontrada. Verifique se há uma câmera conectada.';
+    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+      msg = 'Câmera em uso por outro app. Feche outros apps e tente novamente.';
+    } else if (err.name === 'OverconstrainedError') {
+      // Fallback: try without facingMode constraint
+      showStatus('Câmera traseira indisponível, tentando frontal...', '');
+      retryWithFallback();
+      return;
+    } else if (err.message) {
+      msg += ': ' + err.message;
+    }
+    showStatus(msg, 'error');
+    console.error('[QR Scanner] Start error:', err);
+  }
+
+  function retryWithFallback() {
+    if (!html5QrCode) return;
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 250 },
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+    };
+    html5QrCode.start(
+      { facingMode: 'user' },
+      config,
+      onScanSuccess,
+      onScanFailure,
+    ).then(() => {
+      scannerActive = true;
+      scanBtn.innerHTML = '<i class="fas fa-stop"></i> Parar Scanner';
+      scanBtn.disabled = false;
+      showStatus('Scanner ativo (câmera frontal) — aponte para o QR Code', 'success');
+    }).catch(err => {
+      handleStartError(err);
+    });
+  }
+
+  function stopScanner() {
     if (html5QrCode) {
       html5QrCode.stop().catch(() => {});
+      html5QrCode = null;
     }
-
     scannerActive = false;
-    scanBtn.innerHTML = '<i class="fas fa-camera"></i> Iniciar Scanner';
-    document.getElementById('qr-reader').classList.remove('active');
+    if (readerEl) readerEl.classList.remove('active');
+    if (scanBtn) scanBtn.innerHTML = '<i class="fas fa-camera"></i> Iniciar Scanner';
+    showStatus('Scanner desligado', '');
+  }
+
+  function onScanSuccess(decodedText) {
+    if (!scannerActive) return;
+
+    stopScanner();
 
     const codeMatch = decodedText.match(/Código:\s*(M2-\d+)/);
     const code = codeMatch ? codeMatch[1] : decodedText.trim();
@@ -683,9 +777,20 @@
     addProduct(code);
   }
 
-  function onScanFailure() {}
+  function onScanFailure(err) {
+    // Silencioso - falha de frame é normal
+    if (err && err.name !== 'NotReadableError') {
+      console.debug('[QR Scanner] Scan failure:', err);
+    }
+  }
 
-  scanBtn.addEventListener('click', toggleScanner);
+  // Initialize
+  if (scanBtn) {
+    scanBtn.addEventListener('click', toggleScanner);
+  }
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', stopScanner);
 
   document.getElementById('add-code-btn').addEventListener('click', function() {
     const input = document.getElementById('code-input');

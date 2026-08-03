@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'orders',
     'shipping',
     'management',
+    'mobile',
 ]
 
 MIDDLEWARE = [
@@ -36,6 +37,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'catalog.middleware.SecurityHeadersMiddleware',
+    'mobile.middleware.DeviceRedirectMiddleware',
     'management.signals.CurrentUserMiddleware',
 ]
 

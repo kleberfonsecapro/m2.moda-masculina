@@ -12,6 +12,7 @@ from django_ratelimit.decorators import ratelimit
 from orders.forms import OrderCreateForm
 from orders.models import Order, OrderItem
 from cart.models import Cart, CartItem
+from cart.services import cart_item_key, clear_shipping, get_cart_items, get_cart_total
 from shipping.services import quote, lookup_cep
 from .models import Category, Product, Variant, FeaturedProduct, Newsletter
 
@@ -298,16 +299,6 @@ def product_search(request):
     return JsonResponse({'results': results})
 
 
-def _cart_item_key(product_id, variant_id=None):
-    return f'{product_id}-{variant_id or ""}'
-
-
-@require_POST
-def _clear_shipping(request):
-    request.session.pop('shipping', None)
-    request.session.modified = True
-
-
 @require_POST
 def add_to_cart(request):
     try:
@@ -331,13 +322,13 @@ def add_to_cart(request):
 
     session = request.session
     cart = session.get('cart', [])
-    cart_key = _cart_item_key(product_id, variant_id)
+    key = cart_item_key(product_id, variant_id)
 
     existing_qty = next(
         (
             i['quantity']
             for i in cart
-            if _cart_item_key(i['product_id'], i.get('variant_id')) == cart_key
+            if cart_item_key(i['product_id'], i.get('variant_id')) == key
         ),
         0,
     )
@@ -349,7 +340,7 @@ def add_to_cart(request):
         }, status=400)
 
     for item in cart:
-        if _cart_item_key(item['product_id'], item.get('variant_id')) == cart_key:
+        if cart_item_key(item['product_id'], item.get('variant_id')) == key:
             item['quantity'] = new_total
             break
     else:
@@ -362,7 +353,7 @@ def add_to_cart(request):
     session['cart'] = cart
     session.modified = True
 
-    _clear_shipping(request)
+    clear_shipping(request)
 
     return JsonResponse({
         'success': True,
@@ -388,11 +379,11 @@ def update_cart(request):
     if action == 'remove':
         cart = [
             i for i in cart
-            if _cart_item_key(i['product_id'], i.get('variant_id')) != item_key
+            if cart_item_key(i['product_id'], i.get('variant_id')) != item_key
         ]
     else:
         for i in cart:
-            if _cart_item_key(i['product_id'], i.get('variant_id')) == item_key:
+            if cart_item_key(i['product_id'], i.get('variant_id')) == item_key:
                 if action == 'increase':
                     i['quantity'] += 1
                 elif action == 'decrease':
@@ -402,7 +393,7 @@ def update_cart(request):
     session['cart'] = cart
     session.modified = True
 
-    _clear_shipping(request)
+    clear_shipping(request)
 
     return JsonResponse({
         'success': True,
@@ -411,8 +402,8 @@ def update_cart(request):
 
 
 def cart_page(request):
-    items = _get_cart_items(request)
-    total = _get_cart_total(request)
+    items = get_cart_items(request)
+    total = get_cart_total(request)
     shipping = request.session.get('shipping')
     context = {
         'cart_items': items,
@@ -436,7 +427,7 @@ def select_shipping(request):
     if len(cep) != 8 or not cep.isdigit():
         return JsonResponse({'error': 'CEP inválido'}, status=400)
 
-    options = quote(cep, subtotal=_get_cart_total(request))
+    options = quote(cep, subtotal=get_cart_total(request))
     option = next((o for o in options if o['name'] == method), None)
     if not option:
         return JsonResponse({'error': 'Método de envio inválido'}, status=400)
@@ -454,14 +445,19 @@ def select_shipping(request):
     })
 
 
-def store_checkout(request):
-    items = _get_cart_items(request)
-    total = _get_cart_total(request)
+def store_checkout(
+    request,
+    template_name='catalog/checkout.html',
+    empty_cart_view_name='catalog:cart_page',
+    success_view_name='catalog:order_success',
+):
+    items = get_cart_items(request)
+    total = get_cart_total(request)
     shipping = request.session.get('shipping')
 
     if not items:
         messages.info(request, 'Seu carrinho está vazio.')
-        return redirect('catalog:cart_page')
+        return redirect(empty_cart_view_name)
 
     if request.method == 'POST':
         form = OrderCreateForm(request.POST)
@@ -481,7 +477,7 @@ def store_checkout(request):
                             request,
                             f'Estoque insuficiente para {product.name}. Disponível: {stock_source.stock}',
                         )
-                        return redirect('catalog:cart_page')
+                        return redirect(empty_cart_view_name)
 
                 order = form.save(commit=False)
                 order.user = None
@@ -520,7 +516,7 @@ def store_checkout(request):
             request.session.modified = True
 
             messages.success(request, 'Pedido realizado com sucesso!')
-            return redirect('catalog:order_success', order_id=order.id)
+            return redirect(success_view_name, order_id=order.id)
     else:
         initial = {}
         if shipping:
@@ -542,17 +538,17 @@ def store_checkout(request):
     }
     if shipping:
         context['shipping_total'] = total + Decimal(shipping.get('value', '0'))
-    return render(request, 'catalog/checkout.html', context)
+    return render(request, template_name, context)
 
 
-def order_success(request, order_id):
+def order_success(request, order_id, template_name='catalog/order_success.html'):
     recent_order_ids = request.session.get('recent_order_ids', [])
     if order_id not in recent_order_ids:
         messages.info(request, 'Não foi possível exibir o pedido. Use o e-mail de confirmação para acompanhá-lo.')
         return redirect('catalog:product_list')
 
     order = get_object_or_404(Order, id=order_id)
-    return render(request, 'catalog/order_success.html', {'order': order})
+    return render(request, template_name, {'order': order})
 
 
 @ratelimit(key='ip', rate='5/m', method='POST', block=True)
@@ -580,33 +576,6 @@ def newsletter_signup(request):
         'success': True,
     })
 
-
-def _get_cart_items(request):
-    cart = request.session.get('cart', [])
-    items = []
-    for item in cart:
-        try:
-            product = Product.objects.get(id=item['product_id'], available=True)
-        except Product.DoesNotExist:
-            continue
-        variant = None
-        if item.get('variant_id'):
-            try:
-                variant = Variant.objects.get(id=item['variant_id'], product=product)
-            except Variant.DoesNotExist:
-                pass
-        items.append({
-            'key': _cart_item_key(item['product_id'], item.get('variant_id')),
-            'product': product,
-            'variant': variant,
-            'quantity': item['quantity'],
-            'total': product.effective_price * item['quantity'],
-        })
-    return items
-
-
-def _get_cart_total(request):
-    return sum(i['total'] for i in _get_cart_items(request))
 
 
 
