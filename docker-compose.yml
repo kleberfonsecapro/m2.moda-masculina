@@ -2,6 +2,7 @@ volumes:
   mysql_data:
   static_volume:
   media_volume:
+  backup_data:
 
 services:
   db:
@@ -80,8 +81,52 @@ services:
       web:
         condition: service_healthy
 
+  # Stack de backup 3-2-1 (Borg + Rclone + Telegram).
+  # Fica no profile "backup" para NAO subir no deploy normal:
+  #   docker compose --profile backup up -d backup
+  # Redes: db-network (internal, acesso ao MySQL) + backup-network (egress para o offsite).
+  backup:
+    build:
+      context: ./scripts/backup
+    image: m2moda-masculina-backup:1.0.0
+    container_name: m2-backup
+    profiles: ["backup"]
+    restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 128m
+    env_file:
+      - .env
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      BORG_REPO: /backup/repo
+      BACKUP_AT_HOUR: ${BACKUP_AT_HOUR:-2}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
+      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-6}
+      BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-30}
+      SERVER_NAME: ${SERVER_NAME:-m2moda}
+    volumes:
+      - backup_data:/backup
+      - media_volume:/media:ro
+    networks:
+      - backup-network
+      - db-network
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/bin/bash", "/opt/backup/healthcheck.sh"]
+      interval: 1h
+      timeout: 30s
+      retries: 2
+      start_period: 30m
+    command: ["schedule"]
+
 networks:
   web:
     external: true
   db-network:
     internal: true
+  # Rede exclusiva do backup: sem porta publicada, apenas saida para o offsite.
+  backup-network:
