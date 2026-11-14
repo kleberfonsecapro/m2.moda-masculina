@@ -1,0 +1,582 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Menor privilégio por padrão. Jobs que publicam SARIF elevam apenas o necessário.
+permissions:
+  contents: read
+
+# Em PRs, cancela execuções antigas. Em push na main, deixa terminar (deploy não pode ser abortado no meio).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PYTHON_VERSION: '3.12'
+  RUFF_VERSION: '0.17.5'
+  BLACK_VERSION: '26.10.1'
+  COVERAGE_VERSION: '7.17.3'
+  SEMGREP_VERSION: '1.185.0'
+  GITLEAKS_VERSION: '8.30.1'
+  TRIVY_VERSION: 'v0.76.2'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Lint / formatação
+  #    Bloqueia apenas erros reais (sintaxe e nomes indefinidos). O restante é
+  #    advisory até a dívida de estilo do repositório ser zerada.
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install lint tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "ruff==${RUFF_VERSION}" "black==${BLACK_VERSION}"
+
+      - name: Ruff - erros reais (bloqueante)
+        run: ruff check backend --select E9,F63,F7,F82 --output-format=github
+
+      - name: Ruff - regras completas (advisory)
+        continue-on-error: true
+        run: ruff check backend --output-format=github
+
+      - name: Black - formatação (advisory)
+        continue-on-error: true
+        run: black --check --diff backend
+
+  # ---------------------------------------------------------------------------
+  # 2. Testes automatizados + cobertura
+  #    Os testes usam SQLite em memória (backend/m2shop/settings.py), por isso
+  #    não há service de MySQL neste job.
+  # ---------------------------------------------------------------------------
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SECRET_KEY: ci-only-secret-key-not-used-in-production
+      DEBUG: 'True'
+      ALLOWED_HOSTS: 'localhost,127.0.0.1,testserver'
+      CSRF_TRUSTED_ORIGINS: 'http://localhost:8080'
+      MYSQL_PASSWORD: ci-only-password
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends default-libmysqlclient-dev pkg-config
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+          python -m pip install "coverage==${COVERAGE_VERSION}"
+
+      - name: Django system check
+        working-directory: backend
+        run: |
+          mkdir -p staticfiles media
+          python manage.py check
+
+      - name: Collect static files
+        working-directory: backend
+        run: python manage.py collectstatic --noinput
+
+      - name: Run tests
+        working-directory: backend
+        run: |
+          coverage run --source=. manage.py test --verbosity=2
+          coverage report --show-missing
+          coverage xml
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: |
+            backend/coverage.xml
+            backend/.coverage
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # 3. SAST (Semgrep)
+  #    Em PRs usa baseline: só falha em achados NOVOS. Em push na main roda
+  #    completo, bloqueando achados de severidade ERROR.
+  # ---------------------------------------------------------------------------
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Semgrep
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "semgrep==${SEMGREP_VERSION}"
+
+      - name: Run Semgrep
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          args=(
+            scan
+            --config=p/python
+            --config=p/django
+            --config=p/security-audit
+            --metrics=off
+            --severity=ERROR
+            --error
+            --quiet
+            --sarif
+            --sarif-output=semgrep.sarif
+          )
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ -n "${BASE_SHA}" ]; then
+            args+=(--baseline-commit "${BASE_SHA}")
+          fi
+          semgrep "${args[@]}" backend
+
+      - name: Upload SARIF
+        if: always() && hashFiles('semgrep.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9418214df1f2c4b8128c770156c409013b07d6b9 # v3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+      - name: Upload report
+        if: always() && hashFiles('semgrep.sarif') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # 4. Varredura de segredos (Gitleaks)
+  #    A árvore atual bloqueia. O histórico é apenas advisory porque o .env já
+  #    foi versionado no passado e exige rotação + limpeza de histórico (BFG).
+  # ---------------------------------------------------------------------------
+  secrets:
+    name: Secrets (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Gitleaks (versão pinada + checksum)
+        run: |
+          set -euo pipefail
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          asset="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o /tmp/gitleaks.tar.gz "${base}/${asset}"
+          curl -sSfL -o /tmp/gitleaks_checksums.txt "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          expected="$(awk -v f="${asset}" '$2 == f {print $1; exit}' /tmp/gitleaks_checksums.txt)"
+          if [ -z "${expected}" ]; then
+            echo "Checksum não encontrado para ${asset}"
+            exit 1
+          fi
+          echo "${expected}  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          sudo tar -xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Gitleaks - árvore atual (bloqueante)
+        run: |
+          gitleaks dir . \
+            --redact \
+            --no-banner \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            --exit-code 1
+
+      - name: Gitleaks - histórico git (advisory)
+        continue-on-error: true
+        run: |
+          gitleaks git . \
+            --redact \
+            --no-banner \
+            --report-format sarif \
+            --report-path gitleaks-history.sarif \
+            --exit-code 1
+
+      - name: Upload SARIF
+        if: always() && hashFiles('gitleaks.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9418214df1f2c4b8128c770156c409013b07d6b9 # v3
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gitleaks-reports
+          path: |
+            gitleaks.sarif
+            gitleaks-history.sarif
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # 5. SCA (Trivy filesystem)
+  #    O requirements.txt usa ranges (>=x,<y), que o Trivy não resolve. Por
+  #    isso o job instala as dependências e escaneia o freeze resolvido.
+  #    Misconfig também bloqueia: os Dockerfiles são multi-stage/non-root e
+  #    passam no scan em HIGH/CRITICAL.
+  # ---------------------------------------------------------------------------
+  sca:
+    name: SCA (Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends default-libmysqlclient-dev pkg-config
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+
+      - name: Resolve dependency lock for scanning
+        run: |
+          mkdir -p "$RUNNER_TEMP/sca"
+          python -m pip freeze --exclude-editable > "$RUNNER_TEMP/sca/requirements.txt"
+          cat "$RUNNER_TEMP/sca/requirements.txt"
+
+      - name: Trivy - dependências (bloqueante)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ runner.temp }}/sca
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          limit-severities-for-sarif: true
+          format: sarif
+          output: trivy-sca.sarif
+          exit-code: '1'
+          hide-progress: true
+          version: ${{ env.TRIVY_VERSION }}
+
+      - name: Trivy - misconfig (bloqueante)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: misconfig
+          severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
+          format: sarif
+          output: trivy-misconfig.sarif
+          exit-code: '1'
+          skip-dirs: blendburguer-ref
+          hide-progress: true
+          version: ${{ env.TRIVY_VERSION }}
+
+      - name: Upload SCA SARIF
+        if: always() && hashFiles('trivy-sca.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9418214df1f2c4b8128c770156c409013b07d6b9 # v3
+        with:
+          sarif_file: trivy-sca.sarif
+          category: trivy-sca
+
+      - name: Upload misconfig SARIF
+        if: always() && hashFiles('trivy-misconfig.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9418214df1f2c4b8128c770156c409013b07d6b9 # v3
+        with:
+          sarif_file: trivy-misconfig.sarif
+          category: trivy-misconfig
+
+      - name: Upload SCA reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trivy-sca-reports
+          path: |
+            trivy-sca.sarif
+            trivy-misconfig.sarif
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # 6. Container (build + Trivy image + SBOM)
+  # ---------------------------------------------------------------------------
+  container:
+    name: Container (build + Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build backend image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: backend/Dockerfile
+          load: true
+          push: false
+          tags: m2-backend:ci
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build nginx image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./nginx
+          file: nginx/Dockerfile
+          load: true
+          push: false
+          tags: m2-nginx:ci
+          cache-from: type=gha,scope=nginx
+          cache-to: type=gha,mode=max,scope=nginx
+
+      - name: Trivy - imagem backend (bloqueante)
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: m2-backend:ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          limit-severities-for-sarif: true
+          format: sarif
+          output: trivy-image-backend.sarif
+          exit-code: '1'
+          hide-progress: true
+          version: ${{ env.TRIVY_VERSION }}
+
+      - name: Trivy - imagem nginx (bloqueante)
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: m2-nginx:ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          limit-severities-for-sarif: true
+          format: sarif
+          output: trivy-image-nginx.sarif
+          exit-code: '1'
+          hide-progress: true
+          version: ${{ env.TRIVY_VERSION }}
+
+      - name: SBOM backend (CycloneDX)
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: m2-backend:ci
+          format: cyclonedx
+          output: sbom-backend.cdx.json
+          exit-code: '0'
+          hide-progress: true
+          version: ${{ env.TRIVY_VERSION }}
+
+      - name: SBOM nginx (CycloneDX)
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: m2-nginx:ci
+          format: cyclonedx
+          output: sbom-nginx.cdx.json
+          exit-code: '0'
+          hide-progress: true
+          version: ${{ env.TRIVY_VERSION }}
+
+      - name: Upload image SARIF (backend)
+        if: always() && hashFiles('trivy-image-backend.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9418214df1f2c4b8128c770156c409013b07d6b9 # v3
+        with:
+          sarif_file: trivy-image-backend.sarif
+          category: trivy-image-backend
+
+      - name: Upload image SARIF (nginx)
+        if: always() && hashFiles('trivy-image-nginx.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9418214df1f2c4b8128c770156c409013b07d6b9 # v3
+        with:
+          sarif_file: trivy-image-nginx.sarif
+          category: trivy-image-nginx
+
+      - name: Upload container reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: container-reports
+          path: |
+            trivy-image-backend.sarif
+            trivy-image-nginx.sarif
+            sbom-backend.cdx.json
+            sbom-nginx.cdx.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # 7. Deploy (produção)
+  #    Só roda após TODOS os gates. Requer:
+  #      - environment "production" (reviewers são opcionais; bloqueiam o deploy)
+  #      - secrets DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_HOST_FINGERPRINT
+  #        e DEPLOY_PATH (opcional DEPLOY_PORT)
+  #    Opt-out: variable DEPLOY_ENABLED=false desliga o deploy. Ausente = ativo.
+  #    Não executa seed.py: seed é operação de bootstrap, não de deploy.
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy (production)
+    needs: [lint, test, sast, secrets, sca, container]
+    # Opt-out: o deploy roda por padrão em push na main. A variable
+    # DEPLOY_ENABLED só precisa existir para DESLIGAR (valor "false").
+    # Antes era opt-in (`== 'true'`), que falhava silenciosamente como
+    # "skipped" quando a variable estava ausente ou no escopo errado.
+    if: >-
+      vars.DEPLOY_ENABLED != 'false' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Verificar secrets de deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST_FINGERPRINT: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          faltando=""
+          for nome in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_HOST_FINGERPRINT DEPLOY_PATH; do
+            if [ -z "$(printenv "$nome")" ]; then
+              faltando="$faltando $nome"
+            fi
+          done
+          if [ -n "$faltando" ]; then
+            echo "::error::Secrets de deploy ausentes:$faltando"
+            echo "Configure em Settings -> Secrets and variables -> Actions, no escopo do repositorio ou no environment 'production'."
+            echo "Fingerprint do host: ssh-keyscan -t ed25519 <host> 2>/dev/null | ssh-keygen -lf -"
+            exit 1
+          fi
+          echo "Secrets de deploy presentes."
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          fingerprint: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
+          command_timeout: 20m
+          # A action v1.2.5 nao possui mais o input script_stop (removido).
+          # O script ja usa `set -eu`, que aborta no primeiro erro.
+          script: |
+            set -eu
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            git fetch --prune origin main
+            git reset --hard origin/main
+
+            docker compose up -d --build --remove-orphans
+
+            i=0
+            while [ "$i" -lt 36 ]; do
+              django_health="$(docker inspect -f '{{.State.Health.Status}}' m2-django 2>/dev/null || echo unknown)"
+              nginx_health="$(docker inspect -f '{{.State.Health.Status}}' m2-nginx 2>/dev/null || echo unknown)"
+              if [ "$django_health" = "healthy" ] && [ "$nginx_health" = "healthy" ]; then
+                echo "Deploy concluído: serviços saudáveis."
+                docker compose ps
+                exit 0
+              fi
+              i=$((i + 1))
+              sleep 5
+            done
+
+            echo "ERRO: serviços não ficaram saudáveis a tempo."
+            docker compose ps
+            docker compose logs --tail=100 web nginx
+            exit 1
