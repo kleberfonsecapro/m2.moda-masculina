@@ -113,3 +113,13 @@ Formato: **O quê** / **Por quê** / **Evidência** / **Commit** / **Docs**. Cur
 **Pendente (aguarda o humano)**
 - Rotação dos segredos expostos no histórico (D-015) e configuração real do offsite/Telegram do backup.
 - Gate humano da R1 após revisão.
+
+## 2026-11-14 — R1: suíte não depende mais do `.env` do host
+
+**O que** — `settings.py`: HSTS, `SECURE_SSL_REDIRECT` e cookies `Secure` não são ligados durante
+`manage.py test` (flag `TESTING`).
+
+**Por quê** — com `DEBUG=False` no `.env` de produção (o correto), o runner — que força `DEBUG=False`
+— devolvia 301 em toda requisição e a suíte acusava 123 falhas falsas, mascarando o resultado real.
+
+**Evidência** — `scripts/test.sh` com `DEBUG=False` no `.env` → `Ran 206 tests ... OK`.

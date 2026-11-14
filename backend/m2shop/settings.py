@@ -154,7 +154,13 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@m2moda.com.br')
 
-if not DEBUG:
+# O runner de testes força DEBUG=False. Com DEBUG=False no `.env` de produção
+# (como deve ser), o bloco de segurança abaixo ligaria SECURE_SSL_REDIRECT e o
+# test client — que fala http — receberia 301 em toda requisição, mascarando o
+# resultado real da suíte. A suíte não deve depender do `.env` do host.
+TESTING = 'test' in sys.argv or 'test_coverage' in sys.argv
+
+if not DEBUG and not TESTING:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000
