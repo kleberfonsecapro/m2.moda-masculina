@@ -130,6 +130,54 @@ O hook está em `.git/hooks/pre-push` e monta o diretório `backend/` em modo le
 
 Os arquivos de teste são excluídos da imagem Docker via `.dockerignore` — não rodam em produção.
 
+## CI/CD (GitHub Actions)
+
+Pipeline definido em `.github/workflows/ci.yml`. Roda em Pull Requests e em push para `main` (e manualmente via `workflow_dispatch`).
+
+### Gates
+
+| Job | Ferramenta | Bloqueia |
+| --- | --- | --- |
+| `lint` | Ruff + Black | Ruff em erros reais (`E9,F63,F7,F82`); demais regras e Black são advisory |
+| `test` | Django test runner + coverage | Testes (SQLite em memória) e `manage.py check` |
+| `sast` | Semgrep (`p/python`, `p/django`, `p/security-audit`) | Achados de severidade `ERROR` (em PR: apenas achados novos, via baseline) |
+| `secrets` | Gitleaks | Segredos na árvore atual; histórico do Git é advisory |
+| `sca` | Trivy filesystem | CVEs `HIGH`/`CRITICAL` corrigíveis nas dependências resolvidas |
+| `container` | Buildx + Trivy image | CVEs `HIGH`/`CRITICAL` corrigíveis nas imagens backend e nginx |
+| `deploy` | SSH + Docker Compose | Só após todos os gates, em `main` |
+
+Relatórios SARIF são enviados ao GitHub Code Scanning (aba **Security**) e também ficam disponíveis como artefatos do workflow. O job `container` gera SBOM CycloneDX de ambas as imagens.
+
+> O `requirements.txt` usa ranges (`>=x,<y`), que o Trivy não resolve. Por isso o job `sca` instala as dependências e escaneia o `pip freeze` resolvido.
+
+### Configuração necessária no GitHub
+
+1. **Secrets** (Settings → Secrets and variables → Actions):
+   - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_HOST_FINGERPRINT`, `DEPLOY_PATH`
+   - `DEPLOY_PORT` (opcional, padrão `22`)
+2. **Variable** `DEPLOY_ENABLED=true` para habilitar o job de deploy.
+3. **Environment** `production` com reviewers obrigatórios (Settings → Environments).
+4. **Branch protection** em `main` exigindo os checks `Lint`, `Tests`, `SAST (Semgrep)`, `Secrets (Gitleaks)`, `SCA (Trivy)` e `Container (build + Trivy)`, e proibindo push direto.
+5. **Code scanning**: mantenha o *default setup* desabilitado (Settings → Code security), pois o pipeline envia SARIF próprio.
+
+O deploy faz `git fetch` + `git reset --hard origin/main` + `docker compose up -d --build --remove-orphans`, valida o `healthcheck` de `m2-django` e `m2-nginx` e **não executa `seed.py`** (seed é bootstrap, não deploy).
+
+### Segurança do histórico
+
+O `.env` já foi versionado no passado e removido depois. Considere `SECRET_KEY`, senhas do MySQL e `ADMIN_PASSWORD` **comprometidos**: rotacione-os e limpe o histórico (BFG/filter-repo). Até lá, o scan de histórico do Gitleaks permanece advisory.
+
+### Dívida técnica
+
+Itens já resolvidos e cobertos por regressão no pipeline:
+
+- **Injeção de fórmula em CSV** (`management/views.py`): `csv_safe()` prefixa células iniciadas por `=`, `+`, `-`, `@`, tab ou CR com apóstrofo. A supressão do Semgrep é pontual e justificada em comentário; `management/tests.py` fixa o comportamento.
+- **Dependências desatualizadas**: Django 5.2 LTS (`>=5.2,<5.3`) e Pillow 13 (`>=13.0,<14.0`). O baseline de 42 CVEs corrigíveis (37 HIGH, 5 CRITICAL) caiu para zero no `pip freeze`.
+
+Pendências conhecidas:
+
+- **Rotação de segredos**: `.env` no histórico do Git (ver "Segurança do histórico").
+- **Dockerfiles**: `backend/Dockerfile` é single-stage e leva ferramentas de build (`gcc`, `libmariadb-dev`) para a imagem final; `nginx/Dockerfile` roda como root. A correção (multi-stage + non-root) virá em PR separado — por isso o scan de **misconfig** é advisory.
+
 ## Produção
 
 ### Preparação do ambiente
