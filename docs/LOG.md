@@ -183,3 +183,20 @@ upstream (sem 301) e HT​TPS `:443` responde 404; `X-Forwarded-Proto: https` ch
 **Commit** — pendente de push.
 
 **Docs** — este LOG, `docs/DECISOES.md` (ADR-001), `docs/DIVIDA.md` (D-060), `docs/01-ARQUITETURA.md`, README.
+
+## 2026-11-14 — `unhealthy` local por imagem web desatualizada
+
+**O quê** — `docker compose build web nginx` seguido de `docker compose up -d`; os três serviços
+ficaram `healthy` e a aplicação responde em `localhost`.
+
+**Por quê** — a imagem local `m2moda-masculina-web` era anterior ao commit do endpoint `/healthz`:
+dentro do container não havia `m2shop/views.py` nem a rota, então o healthcheck recebia 404 e o
+`m2-nginx` não subia (`depends_on: service_healthy`). Não era falha de código nem de configuração.
+
+**Evidência** — `curl http://localhost:8080/` → 200 (título da home); `/healthz` → 200 em HTTP e
+HTTPS; `/admin/` → 302 (login); `/static/admin/css/base.css` → 200; `docker compose ps` com
+`m2-django`, `m2-mysql` e `m2-nginx` healthy.
+
+**Commit** — sem mudança de código; apenas registro.
+
+**Docs** — este LOG.
