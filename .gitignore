@@ -12,6 +12,9 @@ build/
 # Django
 backend/staticfiles/
 backend/media/
+# Artefatos locais de cobertura (scripts/coverage.sh roda no host montado)
+backend/.coverage
+backend/coverage.xml
 
 # IDE
 .vscode/
