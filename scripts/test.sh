@@ -21,15 +21,19 @@ cd "$ROOT"
 LOG="${TMPDIR:-/tmp}/m2-test.log"
 APPS="$*"
 
+# frontend/ (templates e static) também entra montado: sem isso a suíte usaria
+# os templates congelados na imagem e um lab com imagem antiga testaria código
+# velho (falha vista em ProductWithoutImageTest).
 # backend/ entra montado como somente-leitura, mas o compose monta volumes em
 # backend/media e backend/staticfiles: o ponto de montagem precisa existir no
 # host, senão um clone novo falha com "read-only file system" (ambos gitignored).
 mkdir -p backend/media backend/staticfiles
 
-echo "[test] montando backend/ e rodando a suíte (log: ${LOG})"
+echo "[test] montando backend/ + frontend/ e rodando a suíte (log: ${LOG})"
 rc=0
 docker compose run --rm --no-deps --entrypoint sh \
     -v "$ROOT/backend:/app/backend:ro" \
+    -v "$ROOT/frontend:/app/frontend:ro" \
     web \
     -c "cd /app/backend && python manage.py test ${APPS} --verbosity=2" 2>&1 | tee "$LOG" || rc=$?
 
