@@ -64,6 +64,13 @@ fi
 echo "produção: ${CURRENT:0:7} -> ${SHA:0:7}"
 git reset --hard --quiet "$SHA"
 
+# A rede 'web' é external: true no compose e não é criada por ele. Garante a
+# existência (host novo ou após um prune) para o deploy não falhar.
+if ! docker network inspect web >/dev/null 2>&1; then
+    echo "rede 'web' ausente; criando."
+    docker network create web >/dev/null
+fi
+
 docker compose up -d --build --remove-orphans
 
 echo "aguardando healthchecks..."

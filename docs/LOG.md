@@ -150,3 +150,18 @@ reimplantar um commit que já está na `main`.
 
 **Evidência** — testes na VPS: comandos arbitrários, injeção (`<sha>; id`), SHA inválido e port forward
 recusados; deploy do commit atual → healthy; voltar a commit antigo sem `--rollback` → recusado.
+
+## 2026-11-14 — Deploy garante a rede externa `web`
+
+**O quê** — `scripts/vps/deploy-m2.sh` cria a rede `web` quando ela não existe, antes do
+`docker compose up`.
+
+**Por quê** — `web` é `external: true` no compose, que não a cria. Em host novo ou após um prune,
+o deploy falhava com `network web declared as external, but could not be found` e os containers
+não subiam.
+
+**Evidência** — `bash -n` OK, `shellcheck` (imagem estável) exit 0, sem novos avisos.
+
+**Commit** — pendente de push.
+
+**Docs** — este LOG; README → Troubleshooting ("network web not found").
