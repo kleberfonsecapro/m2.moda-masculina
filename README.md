@@ -187,6 +187,17 @@ Atenção: um job skipped **não reprova o workflow** — o run aparece verde me
 
 **Warning `Unexpected input(s) 'script_stop'`.** Esse input foi removido da action na v1.2.5. O script já usa `set -eu`, que aborta no primeiro erro.
 
+**`m2-nginx` em loop com `cannot load certificate key ... Permission denied`.** O nginx roda como UID/GID 101 e a chave do certificado está legível apenas por root (`0600`). Correção única no `DEPLOY_PATH`:
+
+```bash
+sudo chown root:101 nginx/certs/localhost.pem nginx/certs/localhost-key.pem
+sudo chmod 640 nginx/certs/localhost-key.pem
+sudo chmod 644 nginx/certs/localhost.pem
+docker compose restart nginx
+```
+
+Evite `chmod 644` na chave em produção (expõe o segredo a qualquer usuário do host). O script de deploy tenta aplicar `chgrp 101` + `chmod 640/644` automaticamente e avisa quando não tem permissão; o healthcheck aborta assim que o container entra em `restarting`, em vez de esperar 3 minutos.
+
 **Deploy falha com `não é gravável pelo UID 100:101`.** Volumes criados por uma versão anterior rodando como root. Correção única, no `DEPLOY_PATH` da VPS:
 
 ```bash
