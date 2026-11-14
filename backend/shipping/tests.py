@@ -208,3 +208,43 @@ class CepLookupViewTest(TestCase):
             content_type='application/json',
         )
         self.assertEqual(response.status_code, 404)
+
+
+class ShippingQuoteSubtotalCharacterizationTest(TestCase):
+    """Caracterização da cotação de frete (D-002).
+
+    ATENÇÃO: congela o comportamento ATUAL, que é um bug. O limiar de frete
+    grátis usa o `subtotal` enviado no corpo da requisição pelo cliente, sem
+    conferir com o carrinho — qualquer um zera o frete declarando um subtotal
+    alto. A correção (R2) deve calcular o subtotal no servidor.
+    """
+
+    def setUp(self):
+        self.config = ShippingConfig.objects.create(
+            cep_origem='01001000', frete_gratis_acima_de=Decimal('200.00'),
+        )
+        ShippingRegion.objects.create(
+            nome='Todo Brasil', cep_inicio='00000000', cep_fim='99999999',
+            fator=Decimal('1.00'),
+        )
+        ShippingRate.objects.create(
+            nome='Sedex', peso_min_kg=0, peso_max_kg=1, valor_base=Decimal('30.00'),
+        )
+
+    @mock.patch('shipping.services.urlopen')
+    def test_subtotal_enviado_pelo_cliente_zera_o_frete(self, mock_urlopen):
+        payload = {'cep': '01310-100', 'localidade': 'São Paulo', 'uf': 'SP'}
+        raw = json.dumps(payload).encode('utf-8')
+        response_mock = mock.Mock()
+        response_mock.read.return_value = raw
+        mock_urlopen.return_value.__enter__.return_value = response_mock
+
+        # O carrinho real não é enviado: só um número escolhido pelo cliente.
+        response = self.client.post(
+            '/frete/calcular/',
+            data=json.dumps({'cep': '01310-100', 'subtotal': '9999.00'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['options'][0]['value'], '0.00')
