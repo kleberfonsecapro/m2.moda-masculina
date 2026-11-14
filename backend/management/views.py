@@ -1,3 +1,4 @@
+import csv
 from decimal import Decimal
 from datetime import timedelta
 from django.db import models
@@ -14,11 +15,26 @@ from django.urls import reverse_lazy
 from orders.models import Order
 from catalog.models import Product
 from .models import OrderStatusHistory, Shipment
-from .models import OrderStatusHistory, Shipment
 
 
 def is_manager(user):
     return user.is_authenticated and (user.is_superuser or user.groups.filter(name='Gerentes').exists())
+
+
+# Prefixos interpretados como fórmula por planilhas (Excel/LibreOffice/Sheets).
+CSV_FORMULA_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
+
+
+def csv_safe(value):
+    """Neutraliza injeção de fórmula em exportações CSV (OWASP CSV Injection).
+
+    Células iniciadas por `=`, `+`, `-`, `@`, tab ou CR são prefixadas com um
+    apóstrofo, fazendo a planilha tratá-las como texto em vez de fórmula.
+    """
+    text = '' if value is None else str(value)
+    if text.startswith(CSV_FORMULA_PREFIXES):
+        return f"'{text}"
+    return text
 
 
 class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -95,6 +111,51 @@ class DashboardView(ManagerRequiredMixin, View):
         return render(request, 'management/dashboard.html', context)
 
 
+def order_queryset_for_request(request):
+    """Queryset de pedidos com os filtros da listagem/exportação.
+
+    Reutilizado pela listagem e pela exportação CSV, garantindo que o arquivo
+    exportado respeite os mesmos filtros aplicados na tela.
+    """
+    qs = Order.objects.select_related('user', 'shipment').prefetch_related(
+        'items__product', 'items__variant'
+    ).order_by('-created_at')
+
+    status = request.GET.get('status')
+    if status:
+        qs = qs.filter(status=status)
+
+    payment = request.GET.get('payment')
+    if payment:
+        qs = qs.filter(payment_method=payment)
+
+    channel = request.GET.get('channel')
+    if channel == 'site':
+        qs = qs.filter(user__isnull=True)
+    elif channel == 'pdv':
+        qs = qs.filter(user__isnull=False)
+
+    date_from = request.GET.get('date_from')
+    if date_from:
+        qs = qs.filter(created_at__date__gte=date_from)
+
+    date_to = request.GET.get('date_to')
+    if date_to:
+        qs = qs.filter(created_at__date__lte=date_to)
+
+    search = request.GET.get('q')
+    if search:
+        qs = qs.filter(
+            Q(id__icontains=search) |
+            Q(full_name__icontains=search) |
+            Q(email__icontains=search) |
+            Q(phone__icontains=search) |
+            Q(cpf__icontains=search)
+        )
+
+    return qs
+
+
 class OrderListView(ManagerRequiredMixin, ListView):
     model = Order
     template_name = 'management/order_list.html'
@@ -102,42 +163,7 @@ class OrderListView(ManagerRequiredMixin, ListView):
     paginate_by = 25
 
     def get_queryset(self):
-        qs = Order.objects.select_related('user', 'shipment').prefetch_related('items__product', 'items__variant').order_by('-created_at')
-
-        # Filtros
-        status = self.request.GET.get('status')
-        if status:
-            qs = qs.filter(status=status)
-
-        payment = self.request.GET.get('payment')
-        if payment:
-            qs = qs.filter(payment_method=payment)
-
-        channel = self.request.GET.get('channel')
-        if channel == 'site':
-            qs = qs.filter(user__isnull=True)
-        elif channel == 'pdv':
-            qs = qs.filter(user__isnull=False)
-
-        date_from = self.request.GET.get('date_from')
-        if date_from:
-            qs = qs.filter(created_at__date__gte=date_from)
-
-        date_to = self.request.GET.get('date_to')
-        if date_to:
-            qs = qs.filter(created_at__date__lte=date_to)
-
-        search = self.request.GET.get('q')
-        if search:
-            qs = qs.filter(
-                Q(id__icontains=search) |
-                Q(full_name__icontains=search) |
-                Q(email__icontains=search) |
-                Q(phone__icontains=search) |
-                Q(cpf__icontains=search)
-            )
-
-        return qs
+        return order_queryset_for_request(self.request)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -341,10 +367,7 @@ class StockAlertView(ManagerRequiredMixin, View):
 
 class ExportOrdersView(ManagerRequiredMixin, View):
     def get(self, request):
-        import csv
-        from django.http import HttpResponse
-
-        qs = OrderListView().get_queryset(request)
+        qs = order_queryset_for_request(request)
 
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="pedidos.csv"'
@@ -357,23 +380,29 @@ class ExportOrdersView(ManagerRequiredMixin, View):
         ])
 
         for order in qs:
-            writer.writerow([
+            seller = (
+                order.user.get_full_name() or order.user.username
+                if order.user else '-'
+            )
+            # Todas as células textuais passam por csv_safe: os dados vêm de
+            # checkout anônimo e não podem ser interpretados como fórmula.
+            writer.writerow([  # nosemgrep: python.django.security.injection.csv-writer-injection.csv-writer-injection
                 order.id,
                 order.created_at.strftime('%d/%m/%Y %H:%M'),
                 'Site' if not order.user else 'PDV',
-                order.full_name,
-                order.email,
-                order.phone,
-                order.cpf,
-                order.address,
-                order.city,
-                order.state,
-                order.zip_code,
-                order.get_status_display(),
-                order.get_payment_method_display(),
+                csv_safe(order.full_name),
+                csv_safe(order.email),
+                csv_safe(order.phone),
+                csv_safe(order.cpf),
+                csv_safe(order.address),
+                csv_safe(order.city),
+                csv_safe(order.state),
+                csv_safe(order.zip_code),
+                csv_safe(order.get_status_display()),
+                csv_safe(order.get_payment_method_display()),
                 f'{order.shipping_cost:.2f}'.replace('.', ','),
                 f'{order.total:.2f}'.replace('.', ','),
-                order.user.get_full_name() or order.user.username if order.user else '-',
+                csv_safe(seller),
             ])
 
         return response
