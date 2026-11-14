@@ -142,7 +142,7 @@ Pipeline definido em `.github/workflows/ci.yml`. Roda em Pull Requests e em push
 | `test` | Django test runner + coverage | Testes (SQLite em memória) e `manage.py check` |
 | `sast` | Semgrep (`p/python`, `p/django`, `p/security-audit`) | Achados de severidade `ERROR` (em PR: apenas achados novos, via baseline) |
 | `secrets` | Gitleaks | Segredos na árvore atual; histórico do Git é advisory |
-| `sca` | Trivy filesystem | CVEs `HIGH`/`CRITICAL` corrigíveis nas dependências resolvidas |
+| `sca` | Trivy filesystem | CVEs `HIGH`/`CRITICAL` corrigíveis nas dependências resolvidas e misconfigurações nos Dockerfiles |
 | `container` | Buildx + Trivy image | CVEs `HIGH`/`CRITICAL` corrigíveis nas imagens backend e nginx |
 | `deploy` | SSH + Docker Compose | Só após todos os gates, em `main` |
 
@@ -171,12 +171,13 @@ O `.env` já foi versionado no passado e removido depois. Considere `SECRET_KEY`
 Itens já resolvidos e cobertos por regressão no pipeline:
 
 - **Injeção de fórmula em CSV** (`management/views.py`): `csv_safe()` prefixa células iniciadas por `=`, `+`, `-`, `@`, tab ou CR com apóstrofo. A supressão do Semgrep é pontual e justificada em comentário; `management/tests.py` fixa o comportamento.
-- **Dependências desatualizadas**: Django 5.2 LTS (`>=5.2,<5.3`) e Pillow 13 (`>=13.0,<14.0`). O baseline de 42 CVEs corrigíveis (37 HIGH, 5 CRITICAL) caiu para zero no `pip freeze`.
+- **Dependências desatualizadas**: Django 5.2 LTS (`>=5.2,<5.3`) e Pillow 13 (`>=13.0,<14.0`). O baseline de 42 CVEs corrigíveis (37 HIGH, 5 CRITICAL) caiu para zero no `pip freeze` e nas imagens.
+- **Imagens**: `backend/Dockerfile` é multi-stage (toolchain só no builder) e roda como UID 100; `nginx/Dockerfile` roda como UID 101. Inclui remoção do `pip` do runtime (superfície de ataque e metadados vendorizados que geravam falso positivo no Trivy) e `apt-get upgrade`/`apk upgrade` para patch dos pacotes da distro.
 
 Pendências conhecidas:
 
 - **Rotação de segredos**: `.env` no histórico do Git (ver "Segurança do histórico").
-- **Dockerfiles**: `backend/Dockerfile` é single-stage e leva ferramentas de build (`gcc`, `libmariadb-dev`) para a imagem final; `nginx/Dockerfile` roda como root. A correção (multi-stage + non-root) virá em PR separado — por isso o scan de **misconfig** é advisory.
+- **Imagens base fixadas por tag, não por digest**: o `upgrade` de pacotes mitiga, mas o ideal é digest pinning + Renovate/Dependabot.
 
 ## Produção
 
@@ -214,6 +215,14 @@ docker compose -f traefik-global/docker-compose.yml up -d
 - `depends_on` atrelado a `healthcheck` real (`service_healthy`) em todas as dependências.
 - Persistência em volumes nomeados (`mysql_data`, `static_volume`, `media_volume`).
 - Com `DEBUG=False`, o Django ativa automaticamente: redirect HTTPS, HSTS, cookies `secure` e `SECURE_PROXY_SSL_HEADER`.
+
+### Containers sem privilégios
+
+As duas imagens rodam como usuário sem privilégios (backend UID 100, nginx UID 101) e o `backend/Dockerfile` é multi-stage — a imagem final não contém compilador (`gcc`, `pkg-config`, headers do MariaDB) nem `pip`.
+
+- **Volumes nomeados novos** herdam a ownership dos diretórios da imagem, então nada precisa de `chown` em runtime. Se um volume legado estiver com outra ownership, o entrypoint falha com a instrução de correção (`docker compose run --rm --user root web chown -R 100:101 /app/backend/...`).
+- **Certificados locais**: o nginx não-root precisa conseguir ler `nginx/certs/localhost-key.pem`. Como os certificados são de desenvolvimento (mkcert, fora do Git), garanta `chmod 644 nginx/certs/localhost-key.pem` na máquina. Em produção o TLS é terminado pelo Traefik.
+- **Portas baixas**: o nginx escuta 80/443 dentro do container como usuário comum. O compose fixa `net.ipv4.ip_unprivileged_port_start: 0` para não depender do default do runtime.
 
 ### Email (verificação e password reset)
 

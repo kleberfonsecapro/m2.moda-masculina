@@ -273,8 +273,8 @@ jobs:
   # 5. SCA (Trivy filesystem)
   #    O requirements.txt usa ranges (>=x,<y), que o Trivy não resolve. Por
   #    isso o job instala as dependências e escaneia o freeze resolvido.
-  #    Misconfig é advisory: o Dockerfile atual é single-stage/root e a
-  #    correção será feita em PR separado.
+  #    Misconfig também bloqueia: os Dockerfiles são multi-stage/non-root e
+  #    passam no scan em HIGH/CRITICAL.
   # ---------------------------------------------------------------------------
   sca:
     name: SCA (Trivy)
@@ -328,8 +328,7 @@ jobs:
           hide-progress: true
           version: ${{ env.TRIVY_VERSION }}
 
-      - name: Trivy - misconfig (advisory)
-        continue-on-error: true
+      - name: Trivy - misconfig (bloqueante)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
