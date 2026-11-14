@@ -28,10 +28,10 @@
                     {% if item.product.code %} · {{ item.product.code }}{% endif %}
                 </div>
                 <div class="mobile-qty-selector" style="margin-top: 8px;" role="group" aria-label="Quantidade de {{ item.product.name }}">
-                    <button type="button" class="mobile-qty-btn qty-down" data-key="{{ item.key }}">−</button>
+                    <button type="button" class="mobile-qty-btn qty-down" data-key="{{ item.key }}" aria-label="Diminuir quantidade">−</button>
                     <span class="mobile-qty-value">{{ item.quantity }}</span>
-                    <button type="button" class="mobile-qty-btn qty-up" data-key="{{ item.key }}">+</button>
-                    <button type="button" class="mobile-qty-btn mobile-qty-remove" data-key="{{ item.key }}" aria-label="Remover">
+                    <button type="button" class="mobile-qty-btn qty-up" data-key="{{ item.key }}" aria-label="Aumentar quantidade">+</button>
+                    <button type="button" class="mobile-qty-btn mobile-qty-remove" data-key="{{ item.key }}" aria-label="Remover item">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>

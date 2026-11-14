@@ -54,6 +54,13 @@ class MobileStorePageTest(MobileTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Camisa Básica')
 
+    def test_mobile_css_links_are_versioned(self):
+        # /static/ vai com Cache-Control immutable de 30 dias: sem ?v= o celular
+        # continua com o CSS antigo depois do deploy.
+        response = self.client.get('/m/')
+        self.assertContains(response, '/static/css/mobile/app.css?v=')
+        self.assertContains(response, '/static/css/style.css?v=')
+
     def test_header_cart_is_rightmost_icon(self):
         html = self.client.get('/m/').content.decode()
         header = html[html.index('mobile-header-actions'):html.index('</header>')]

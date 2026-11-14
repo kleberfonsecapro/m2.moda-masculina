@@ -251,3 +251,23 @@ colada no contador em `style.css`, `mobile/app.css`, `mobile/catalog/cart.html`)
 commit, no working tree.
 
 **Docs** — este LOG.
+
+## 2026-11-14 — Revisão do 6f37244 (lixeira do carrinho) + CSS versionado no mobile
+
+**O quê** — (1) desktop: `.cart-item-remove` vira botão solto 38×38 com cantos arredondados (o
+`border-left`/canto direito de "encaixe" deixava uma linha solta, pois a lixeira fica depois do
+total, não colada ao `.qty-control`); (2) mobile `/m/carrinho/`: `aria-label` em −, + e lixeira;
+(3) `mobile/base.html`, `mobile/sales/*.html` e `catalog/sales_login.html` passam a usar
+`static_versioned` nos CSS, como o `base.html` desktop.
+
+**Por quê** — revisão pedida pelo PO. O item 3 é pré-existente e bloqueava a entrega: `/static/`
+sai com `Cache-Control: public, immutable` por 30 dias e os links mobile não tinham `?v=`, então o
+navegador local manteve o CSS antigo (lixeira preta em vez de vermelha) — o mesmo ocorreria com
+clientes após o deploy.
+
+**Evidência** — navegador local: lixeira desktop 38×38 sem borda; mobile lixeira `rgb(220,53,69)`
+e `app.css?v=…`; `./scripts/test.sh` → 220 OK (1 teste novo em `mobile.tests`).
+
+**Commit** — branch `feat/botao-adicionar-carrinho`.
+
+**Docs** — este LOG.
