@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# Lint com a MESMA versão do CI (backend/requirements-dev.txt).
+# Lint com versões fixadas (backend/requirements-dev.txt).
 # A ferramenta roda em container efêmero: nada é instalado no host nem na
 # imagem de produção (AGENTS.md §2).
 #
 # Uso:
 #   scripts/lint.sh                    # regras padrão do ruff
 #   scripts/lint.sh --statistics       # resumo por regra (baseline)
-#   scripts/lint.sh --select E9,F63,F7,F82   # somente erros reais (gate do CI)
+#   scripts/lint.sh --select E9,F63,F7,F82   # somente erros reais
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

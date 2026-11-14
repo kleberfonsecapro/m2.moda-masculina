@@ -1,13 +1,13 @@
-# Dependências usadas apenas no desenvolvimento e no CI.
+# Dependências usadas apenas no desenvolvimento.
 # NUNCA instalar na imagem de produção (backend/requirements.txt é a fonte dela).
 #
 # Não inclui `-r requirements.txt` de propósito: lint/format não precisam do
 # runtime, e arrastar o mysqlclient obrigaria a instalar toolchain em qualquer
 # container efêmero. Quem roda a suíte instala os dois arquivos (ver
-# scripts/coverage.sh e .github/workflows/ci.yml).
+# scripts/coverage.sh).
 #
-# As versões abaixo são cópia exata das usadas em .github/workflows/ci.yml:
-# o resultado local e o do CI precisam ser comparáveis (AGENTS.md §7).
+# Versões fixadas: o resultado precisa ser reproduzível entre máquinas
+# (AGENTS.md §7).
 ruff==0.17.5
 black==26.10.1
 coverage==7.17.3

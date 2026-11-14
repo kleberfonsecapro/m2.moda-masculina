@@ -2,8 +2,6 @@
 #
 # Cobertura de testes: roda a suíte num container efêmero com as dependências
 # de desenvolvimento (o runtime de produção não tem pip nem coverage).
-#
-# O número é o mesmo que o job "Tests" do CI publica como artefato.
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

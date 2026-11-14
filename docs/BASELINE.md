@@ -3,8 +3,8 @@
 **Medido em:** 2026-11-14 · **Branch:** `feat/r1-rede-de-seguranca` (merge de `origin/main` em `168c364`)
 **Ambiente:** containers Docker (Python 3.12 · Django 5.2 · SQLite em memória nos testes)
 
-> Regra da catraca (AGENTS.md §7): **estes números nunca pioram**. O CI falha se o gate
-> bloqueante piorar; os números advisory viram metas que sobem a cada ciclo.
+> Regra da catraca (AGENTS.md §7): **estes números nunca pioram**. O gate bloqueante não
+> pode piorar; os números advisory viram metas que sobem a cada ciclo.
 
 ## 1. Números
 
@@ -17,7 +17,6 @@
 | Black — formatação | **49 de 62 arquivos** seriam reformatados | `docker run … black --check backend` | 🟡 advisory |
 | Gitleaks — árvore atual | **0** (o cert local `nginx/certs/` é gitignored) | `gitleaks dir .` | 🔴 bloqueante |
 | Gitleaks — histórico | **2** (`.env` de `57fd19a`: `SECRET_KEY`, `MYSQL_PASSWORD`) | `gitleaks git .` | 🟡 advisory — **D-015, rotação humana** |
-| Semgrep / Trivy (SCA + imagem) | executados no CI | `.github/workflows/ci.yml` | 🔴 bloqueante |
 
 ### Ruff — distribuição dos 166 achados (advisory)
 
