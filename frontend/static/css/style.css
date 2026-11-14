@@ -116,7 +116,12 @@ img { max-width: 100%; height: auto; display: block; }
 .nav-list a:hover { color: var(--color-black); }
 .nav-list a:hover::after { width: 100%; }
 
-.header-actions { display: flex; align-items: center; gap: 12px; }
+/* O menu de categorias cresce com o cadastro; ele encolhe e rola para o carrinho
+   nunca sair da tela (antes ia para x>1400 em 1280px). */
+.nav { flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.nav::-webkit-scrollbar { display: none; }
+.nav-list { white-space: nowrap; }
+.header-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; margin-left: auto; }
 .search-toggle, .cart-btn {
     background: none; border: none; font-size: 1.2rem; color: var(--color-dark-gray);
     cursor: pointer; padding: 8px; position: relative;

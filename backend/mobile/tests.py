@@ -54,6 +54,11 @@ class MobileStorePageTest(MobileTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Camisa Básica')
 
+    def test_header_cart_is_rightmost_icon(self):
+        html = self.client.get('/m/').content.decode()
+        header = html[html.index('mobile-header-actions'):html.index('</header>')]
+        self.assertLess(header.index('aria-label="Vendas"'), header.index('aria-label="Carrinho"'))
+
     def test_categories_returns_200_with_count(self):
         response = self.client.get('/m/categorias/')
         self.assertEqual(response.status_code, 200)

@@ -234,6 +234,12 @@ class HomeViewTest(TestCase):
         response = self.client.get('/')
         self.assertContains(response, 'Camisa')
 
+    def test_header_cart_is_rightmost_icon(self):
+        html = self.client.get('/').content.decode()
+        actions = html[html.index('class="header-actions"'):html.index('id="searchBar"')]
+        self.assertLess(actions.index('id="menuToggle"'), actions.index('id="cartToggle"'))
+        self.assertLess(actions.index('id="searchToggle"'), actions.index('id="cartToggle"'))
+
     def test_home_buy_button_says_add_to_cart(self):
         response = self.client.get('/')
         self.assertContains(response, 'Adicionar ao Carrinho')

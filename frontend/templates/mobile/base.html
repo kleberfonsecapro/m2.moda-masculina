@@ -26,14 +26,14 @@
             <span>M2 Moda Masculina</span>
         </a>
         <div class="mobile-header-actions">
+            <a href="{% url 'mobile:sales_login' %}" class="mobile-icon-btn" aria-label="Vendas">
+                <i class="fas fa-cash-register"></i>
+            </a>
             <a href="{% url 'mobile:cart' %}" class="mobile-icon-btn" aria-label="Carrinho">
                 <i class="fas fa-shopping-bag"></i>
                 {% if cart_count > 0 %}
                 <span class="mobile-badge">{{ cart_count }}</span>
                 {% endif %}
-            </a>
-            <a href="{% url 'mobile:sales_login' %}" class="mobile-icon-btn" aria-label="Vendas">
-                <i class="fas fa-cash-register"></i>
             </a>
         </div>
     </header>

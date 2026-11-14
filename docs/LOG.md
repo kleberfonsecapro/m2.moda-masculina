@@ -215,3 +215,20 @@ agora descreve a ação real e fica igual ao do modal rápido (`base.html`) e da
 **Commit** — branch `feat/botao-adicionar-carrinho`.
 
 **Docs** — este LOG.
+
+## 2026-11-14 — Carrinho no canto superior direito
+
+**O quê** — header desktop: ordem dos ícones passa a ser busca → menu → **carrinho** (último);
+`.nav` encolhe e rola na horizontal (barra oculta) e `.header-actions` não encolhe. Header
+mobile (`/m/`): carrinho trocou de lugar com o ícone de Vendas e ficou no canto.
+
+**Por quê** — com 7+ categorias o menu empurrava busca e carrinho para fora da tela em 1280px
+(carrinho em x≈1469, rolagem horizontal na página). Pedido do PO: carrinho no canto direito.
+
+**Evidência** — navegador local 1280px: carrinho em x≈1175–1208, `scrollWidth` 1265 < 1280,
+clique abre `.cart-sidebar`; `/m/` 375px com o carrinho no canto. `./scripts/test.sh` → 218 OK
+(2 testes novos de ordem do header).
+
+**Commit** — branch `feat/botao-adicionar-carrinho`.
+
+**Docs** — este LOG.
