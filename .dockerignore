@@ -4,5 +4,12 @@
 **/*.pyc
 .env
 .git
+.github
 .gitignore
 README.md
+
+# Artefatos locais de runtime: nunca devem entrar na imagem.
+backend/media/
+backend/staticfiles/
+backend/.coverage
+backend/coverage.xml

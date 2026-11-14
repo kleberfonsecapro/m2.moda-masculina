@@ -47,8 +47,8 @@ Envio de estáticos/mídia: nginx monta os volumes em :ro
 
 > **Atualização 2026-11-14:** o Traefik em produção **não** é o stack `traefik-global/` deste repo — ele
 > roda em `/home/kleber/traefik` (v3.7.1, projeto `traefik`). O `m2-nginx` foi conectado à rede externa
-> `traefik_global` e publicado por `dynamic.yml` (`m2-http`/`m2-https` → `http://m2-nginx:80`), com o TLS
-> terminado na borda e a porta 80 do nginx servindo proxy quando há `X-Forwarded-Proto`. O `web` continua
+> `traefik_global` e publicado por `dynamic.yml` (`m2-http`/`m2-https` → `http://m2-nginx:8081`), com o TLS
+> terminado na borda. A `8081` é uma entrada interna (não publicada no host); a porta 80 só redireciona. O `web` continua
 > existindo para o `web`↔`nginx`. Runbook: `docs/TRAEFIK.md`.
 
 ## 2. Estrutura do código (monólito Django, 6 apps)

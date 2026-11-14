@@ -451,7 +451,11 @@
           {% if cart and cart.items.exists %}
             {% for item in cart.items.all %}
             <div class="sales-cart-item" data-item-id="{{ item.id }}" data-product-id="{{ item.product.id }}">
+              {% if item.product.image %}
               <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="sales-cart-item-img">
+              {% else %}
+              <div class="sales-cart-item-img"></div>
+              {% endif %}
               <div class="sales-cart-item-info">
                 <div class="sales-cart-item-name">{{ item.product.name }}</div>
                 <div class="sales-cart-item-code">{{ item.product.code }}</div>

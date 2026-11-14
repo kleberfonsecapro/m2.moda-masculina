@@ -105,30 +105,144 @@ docker compose ps
 
 ## Testes
 
-154 testes automatizados (unitários + integração) divididos entre os 5 apps (catalog, cart, orders, accounts, shipping).
+203 testes automatizados (unitários + integração) divididos entre os apps (catalog, cart, orders,
+accounts, shipping, management e mobile).
+
+> ⚠️ **Não rode** `docker compose run --rm --no-deps web python manage.py test` diretamente.
+> A imagem de produção não embarca os testes (`.dockerignore`) e o Django responde
+> `Ran 0 tests ... OK` — falso verde (D-030). O script abaixo monta `backend/` e **falha** se
+> nenhum teste executar.
 
 ```bash
-# Rodar todos os testes
-docker compose run --rm --no-deps web python manage.py test
+# Suíte completa (com guarda contra "0 testes")
+scripts/test.sh
 
-# Rodar testes de um app específico
-docker compose run --rm --no-deps web python manage.py test shipping
+# Apenas alguns apps
+scripts/test.sh catalog orders
 
-# Rodar com verbose
-docker compose run --rm --no-deps web python manage.py test catalog cart orders accounts --verbosity=2
+# Lint com a mesma versão do CI (container efêmero, nada no host)
+scripts/lint.sh                            # relatório completo
+scripts/lint.sh --select E9,F63,F7,F82     # gate bloqueante do CI
+
+# Cobertura (mesmo relatório do artefato do CI)
+scripts/coverage.sh
 ```
 
-Os testes usam **SQLite em memória** (configurado automaticamente em `settings.py`), sem dependência do MySQL.
+Os testes usam **SQLite em memória** (configurado automaticamente em `settings.py`), sem dependência
+do MySQL e **sem exigir `collectstatic`** — durante os testes o storage de static é o simples (D-030b).
 
 ### Pre-push Hook
 
-Um git hook local executa os testes automaticamente antes de cada `git push`. Se falharem, o push é cancelado.
+O hook versionado em `scripts/hooks/pre-push` roda `scripts/test.sh` antes de cada `git push` e
+cancela o push se a suíte falhar — ou se não puder ser executada (Docker ausente/ambiente inválido).
 
-O hook está em `.git/hooks/pre-push` e monta o diretório `backend/` em modo leitura para disponibilizar os arquivos de teste no container.
+```bash
+# Ativar uma vez por clone
+scripts/install-hooks.sh
+
+# Pular conscientemente (ex.: push só de documentação sem ambiente Docker)
+SKIP_TESTS=1 git push
+```
+
+`core.hooksPath=scripts/hooks` mantém o hook **no repositório**; `.git/hooks` não é versionado.
 
 ### Produção
 
 Os arquivos de teste são excluídos da imagem Docker via `.dockerignore` — não rodam em produção.
+É por isso que a suíte roda com o código fonte montado do host.
+
+## CI/CD (GitHub Actions)
+
+Pipeline definido em `.github/workflows/ci.yml`. Roda em Pull Requests e em push para `main` (e manualmente via `workflow_dispatch`).
+
+### Gates
+
+| Job | Ferramenta | Bloqueia |
+| --- | --- | --- |
+| `lint` | Ruff + Black | Ruff em erros reais (`E9,F63,F7,F82`); demais regras e Black são advisory |
+| `test` | Django test runner + coverage | Testes (SQLite em memória) e `manage.py check` |
+| `sast` | Semgrep (`p/python`, `p/django`, `p/security-audit`) | Achados de severidade `ERROR` (em PR: apenas achados novos, via baseline) |
+| `secrets` | Gitleaks | Segredos na árvore atual; histórico do Git é advisory |
+| `sca` | Trivy filesystem | CVEs `HIGH`/`CRITICAL` corrigíveis nas dependências resolvidas e misconfigurações nos Dockerfiles |
+| `container` | Buildx + Trivy image | CVEs `HIGH`/`CRITICAL` corrigíveis nas imagens backend e nginx |
+| `deploy` | SSH + Docker Compose | Só após todos os gates, em `main` |
+
+Relatórios SARIF são enviados ao GitHub Code Scanning (aba **Security**) e também ficam disponíveis como artefatos do workflow. O job `container` gera SBOM CycloneDX de ambas as imagens.
+
+> O `requirements.txt` usa ranges (`>=x,<y`), que o Trivy não resolve. Por isso o job `sca` instala as dependências e escaneia o `pip freeze` resolvido.
+
+### Configuração necessária no GitHub
+
+1. **Secrets** (Settings → Secrets and variables → Actions, no escopo do repositório ou no environment `production`):
+   - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_HOST_FINGERPRINT`, `DEPLOY_PATH`
+   - `DEPLOY_PORT` (opcional, padrão `22`)
+   - `DEPLOY_SSH_KEY` é a chave **privada** completa (com `-----BEGIN ...-----`), não o caminho do arquivo.
+   - `DEPLOY_HOST_FINGERPRINT` é o SHA256 da chave pública do host, não o conteúdo da chave:
+     ```bash
+     ssh-keyscan -t ed25519 <host> 2>/dev/null | ssh-keygen -lf -
+     # saída: 256 SHA256:xxxxx... host (ED25519)  -> use o SHA256:...
+     ```
+   - O job tem um passo "Verificar secrets de deploy" que falha com a lista dos nomes ausentes antes de tentar o SSH.
+2. **Variable** `DEPLOY_ENABLED` (opcional): é um *kill switch*. Ausente ou com qualquer valor diferente de `false`, o deploy roda normalmente em push na `main`; com `false`, ele é desligado. Se for criar, use uma *repository variable* (aba `Variables`) — variable de environment ou secret não é lida pelo `if` do job.
+3. **Environment** `production` (Settings → Environments). Reviewers são **opcionais**: sem eles o deploy é automático; com eles o job para em *Waiting* até aprovação manual.
+4. **Branch protection** em `main` exigindo os checks `Lint`, `Tests`, `SAST (Semgrep)`, `Secrets (Gitleaks)`, `SCA (Trivy)` e `Container (build + Trivy)`, e proibindo push direto.
+5. **Code scanning**: mantenha o *default setup* desabilitado (Settings → Code security), pois o pipeline envia SARIF próprio.
+
+O deploy faz `git fetch` + `git reset --hard origin/main` + `docker compose up -d --build --remove-orphans`, valida o `healthcheck` de `m2-django` e `m2-nginx` e **não executa `seed.py`** (seed é bootstrap, não deploy).
+
+### Troubleshooting
+
+**`Deploy (production)` aparece como *Skipped*.** O `if` do job deu falso; o GitHub não tentou conectar na VPS. Causas:
+
+1. Algum dos seis gates falhou — `deploy` depende de `needs: [lint, test, sast, secrets, sca, container]`.
+2. A variable `DEPLOY_ENABLED` existe com o valor exato `false` (kill switch ligado).
+3. O evento não foi push na `main` nem `workflow_dispatch` (ex.: execução vinda de um PR).
+
+O deploy é *opt-out*, então uma variable ausente **não** impede a execução.
+
+Se o status for *Waiting* em vez de *Skipped*, o environment `production` tem reviewers exigindo aprovação manual.
+
+Atenção: um job skipped **não reprova o workflow** — o run aparece verde mesmo sem deploy. Confira o job, não só o status do run.
+
+**Deploy falha com `error: missing server host`.** `secrets.DEPLOY_HOST` chegou vazio — o secret não existe, está com outro nome ou foi criado como *variable*. O passo "Verificar secrets de deploy" lista os nomes ausentes antes de tentar o SSH.
+
+**Warning `Unexpected input(s) 'script_stop'`.** Esse input foi removido da action na v1.2.5. O script já usa `set -eu`, que aborta no primeiro erro.
+
+**`m2-nginx` em loop com `cannot load certificate key ... Permission denied`.** O nginx roda como UID/GID 101 e a chave do certificado está legível apenas por root (`0600`). Correção única no `DEPLOY_PATH`:
+
+```bash
+sudo chown root:101 nginx/certs/localhost.pem nginx/certs/localhost-key.pem
+sudo chmod 640 nginx/certs/localhost-key.pem
+sudo chmod 644 nginx/certs/localhost.pem
+docker compose restart nginx
+```
+
+Evite `chmod 644` na chave em produção (expõe o segredo a qualquer usuário do host). O script de deploy tenta aplicar `chgrp 101` + `chmod 640/644` automaticamente e avisa quando não tem permissão; o healthcheck aborta assim que o container entra em `restarting`, em vez de esperar 3 minutos.
+
+**Deploy falha com `não é gravável pelo UID 100:101`.** Volumes criados por uma versão anterior rodando como root. Correção única, no `DEPLOY_PATH` da VPS:
+
+```bash
+docker compose run --rm --user root web chown -R 100:101 /app/backend/staticfiles /app/backend/media
+```
+
+**Deploy falha com `network web not found`.** A rede é `external: true` e não é criada pelo compose: `docker network create web`.
+
+### Segurança do histórico
+
+O `.env` já foi versionado no passado e removido depois. Considere `SECRET_KEY`, senhas do MySQL e `ADMIN_PASSWORD` **comprometidos**: rotacione-os e limpe o histórico (BFG/filter-repo). Até lá, o scan de histórico do Gitleaks permanece advisory.
+
+### Dívida técnica
+
+Itens já resolvidos e cobertos por regressão no pipeline:
+
+- **Injeção de fórmula em CSV** (`management/views.py`): `csv_safe()` prefixa células iniciadas por `=`, `+`, `-`, `@`, tab ou CR com apóstrofo. A supressão do Semgrep é pontual e justificada em comentário; `management/tests.py` fixa o comportamento.
+- **Dependências desatualizadas**: Django 5.2 LTS (`>=5.2,<5.3`) e Pillow 13 (`>=13.0,<14.0`). O baseline de 42 CVEs corrigíveis (37 HIGH, 5 CRITICAL) caiu para zero no `pip freeze` e nas imagens.
+- **Imagens**: `backend/Dockerfile` é multi-stage (toolchain só no builder) e roda como UID 100; `nginx/Dockerfile` roda como UID 101. Inclui remoção do `pip` do runtime (superfície de ataque e metadados vendorizados que geravam falso positivo no Trivy) e `apt-get upgrade`/`apk upgrade` para patch dos pacotes da distro.
+
+Pendências conhecidas:
+
+- **Rotação de segredos**: `.env` no histórico do Git (ver "Segurança do histórico").
+- **Imagens base fixadas por tag, não por digest**: o `upgrade` de pacotes mitiga, mas o ideal é digest pinning + Renovate/Dependabot.
 
 ## Produção
 
@@ -166,6 +280,14 @@ docker compose -f traefik-global/docker-compose.yml up -d
 - `depends_on` atrelado a `healthcheck` real (`service_healthy`) em todas as dependências.
 - Persistência em volumes nomeados (`mysql_data`, `static_volume`, `media_volume`).
 - Com `DEBUG=False`, o Django ativa automaticamente: redirect HTTPS, HSTS, cookies `secure` e `SECURE_PROXY_SSL_HEADER`.
+
+### Containers sem privilégios
+
+As duas imagens rodam como usuário sem privilégios (backend UID 100, nginx UID 101) e o `backend/Dockerfile` é multi-stage — a imagem final não contém compilador (`gcc`, `pkg-config`, headers do MariaDB) nem `pip`.
+
+- **Volumes nomeados novos** herdam a ownership dos diretórios da imagem, então nada precisa de `chown` em runtime. Se um volume legado estiver com outra ownership, o entrypoint falha com a instrução de correção (`docker compose run --rm --user root web chown -R 100:101 /app/backend/...`).
+- **Certificados locais**: o nginx não-root precisa conseguir ler `nginx/certs/localhost-key.pem`. Como os certificados são de desenvolvimento (mkcert, fora do Git), garanta `chmod 644 nginx/certs/localhost-key.pem` na máquina. Em produção o TLS é terminado pelo Traefik.
+- **Portas baixas**: o nginx escuta 80/443 dentro do container como usuário comum. O compose fixa `net.ipv4.ip_unprivileged_port_start: 0` para não depender do default do runtime.
 
 ### Email (verificação e password reset)
 

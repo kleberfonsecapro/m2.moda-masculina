@@ -118,6 +118,16 @@ STORAGES = {
     },
 }
 
+# Durante os testes o manifesto de static não existe (ninguém roda collectstatic
+# antes de `manage.py test` em container limpo) e o ManifestStaticFilesStorage
+# derruba os testes que renderizam template com "Missing staticfiles manifest
+# entry" (D-030b). O storage simples lê os arquivos direto de STATICFILES_DIRS.
+# Produção continua usando o manifesto: este bloco só vale para o runner de testes.
+if 'test' in sys.argv or 'test_coverage' in sys.argv:
+    STORAGES['staticfiles'] = {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    }
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -144,9 +154,19 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@m2moda.com.br')
 
-if not DEBUG:
+# O runner de testes força DEBUG=False. Com DEBUG=False no `.env` de produção
+# (como deve ser), o bloco de segurança abaixo ligaria SECURE_SSL_REDIRECT e o
+# test client — que fala http — receberia 301 em toda requisição, mascarando o
+# resultado real da suíte. A suíte não deve depender do `.env` do host.
+TESTING = 'test' in sys.argv or 'test_coverage' in sys.argv
+
+if not DEBUG and not TESTING:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
+    # O healthcheck do container fala HTTP puro com o gunicorn (127.0.0.1:8000).
+    # Sem a isencao, o probe recebe 301 para https:// e o container fica
+    # unhealthy em producao. O redirect externo continua a cargo do nginx.
+    SECURE_REDIRECT_EXEMPT = [r'^healthz$']
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True

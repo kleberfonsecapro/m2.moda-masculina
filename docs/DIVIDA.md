@@ -9,6 +9,25 @@
 > Regra da catraca (AGENTS.md §7): dívida **não** bloqueia o CI; ela é paga quando o código é tocado.
 > **Um item por PR**, com teste de regressão.
 
+## Atualizações da R1 (2026-11-14)
+
+O repositório avançou em paralelo (`origin/main`: CI, multi-stage/non-root, Django 5.2, export CSV).
+O que mudou no inventário original:
+
+| Item | Situação em 2026-11-14 |
+| :-- | :-- |
+| **D-030** (falso verde: `Ran 0 tests ... OK`) | ✅ **corrigido** — `scripts/test.sh` monta `backend/` e **falha se 0 testes**; README atualizado |
+| **D-030b** (manifesto de static derrubava 50 testes) | ✅ **corrigido** — `settings.py` usa storage simples quando `test` está em `sys.argv` |
+| **D-031** (hook pre-push documentado mas inexistente) | ✅ **corrigido** — `scripts/hooks/pre-push` versionado + `core.hooksPath` (via `scripts/install-hooks.sh`) |
+| **D-036** (sem linter/formatter/cobertura) | 🟡 **parcial** — `pyproject.toml` + `requirements-dev.txt` + `scripts/lint.sh`/`coverage.sh`; falta type-checker e pre-commit |
+| **D-039** (sem lockfile/hashes) | 🟡 **parcial** — dev deps fixadas; runtime segue com ranges, lockfile com hashes pendente |
+| **D-004** (export CSV 500) | ✅ **corrigido no upstream** (`d37f102`) com teste de regressão em `management/tests.py` |
+| **D-059** (sem backup/DR) | ✅ **corrigido** — stack 3-2-1 com restore provado (`docs/BACKUP.md`) |
+| **D-001, D-002, D-003** | 🧪 **caracterizados** (testes congelam o bug); correção é R2 |
+| **D-080** (home 500 com produto sem imagem) | confirmado: até o PDV quebra ao montar o JSON do item (`catalog/views.py:118`) sem imagem |
+
+Baseline medido e metas: `docs/BASELINE.md`.
+
 ---
 
 ## A. Correção / integridade de dados (prioridade máxima)

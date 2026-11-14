@@ -42,12 +42,16 @@ Cada aplicação é publicada de duas formas possíveis: **por labels** (provide
 
     m2:
       loadBalancer:
-        servers: [{ url: "http://m2-nginx:80" }]
+        servers: [{ url: "http://m2-nginx:8081" }]
 ```
 
-3. `nginx/nginx.conf` distingue **borda** de **acesso direto**:
-   - com `X-Forwarded-Proto` (veio do Traefik) → faz proxy para `m2-django:8000` sem redirecionar;
-   - sem o cabeçalho (`http://host:8080`) → `301 https://host:8443` (comportamento local preservado).
+3. `nginx/nginx.conf` separa **borda** de **acesso direto** por porta:
+   - `:8081` (só redes Docker, **não publicada** no host) → entrada do Traefik; serve em HTTP puro
+     e repassa o `X-Forwarded-Proto` recebido da borda;
+   - `:80` (publicada como `8080`) → sempre `301 https://host:8443`, **sem** confiar em
+     `X-Forwarded-Proto`. Antes, a porta 80 servia proxy quando o cabeçalho vinha preenchido, e
+     qualquer cliente em `http://IP:8080` podia forjá-lo e receber a aplicação sem TLS, com o
+     Django tratando a conexão como HTTPS (cookies `Secure` em texto puro).
 
 ## Quando o domínio for comprado
 

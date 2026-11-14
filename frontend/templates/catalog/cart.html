@@ -20,7 +20,9 @@
                 <div class="cart-item">
                     <div class="cart-item-image">
                         <a href="{{ item.product.get_absolute_url }}">
+                            {% if item.product.image %}
                             <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+                            {% endif %}
                         </a>
                     </div>
                     <div class="cart-item-info">
