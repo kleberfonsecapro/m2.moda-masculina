@@ -37,12 +37,12 @@
                         <div class="cart-item-price">R$ {{ item.product.effective_price|floatformat:2 }}</div>
                     </div>
                     <div class="qty-control">
-                        <button class="qty-decrease" data-key="{{ item.key }}">−</button>
-                        <input type="text" value="{{ item.quantity }}" readonly>
-                        <button class="qty-increase" data-key="{{ item.key }}">+</button>
+                        <button type="button" class="qty-decrease" data-key="{{ item.key }}" aria-label="Diminuir quantidade">−</button>
+                        <input type="text" value="{{ item.quantity }}" readonly aria-label="Quantidade">
+                        <button type="button" class="qty-increase" data-key="{{ item.key }}" aria-label="Aumentar quantidade">+</button>
                     </div>
                     <div class="cart-item-total">R$ {{ item.total|floatformat:2 }}</div>
-                    <button class="cart-item-remove" data-key="{{ item.key }}"><i class="fas fa-trash-alt"></i></button>
+                    <button type="button" class="cart-item-remove" data-key="{{ item.key }}" aria-label="Remover item"><i class="fas fa-trash-alt"></i></button>
                 </div>
                 {% endfor %}
             </div>

@@ -693,6 +693,16 @@ class StoreCartTest(TestCase):
         self.assertTrue(data['success'])
         self.assertEqual(data['cart_count'], 1)
 
+    def test_cart_page_qty_buttons_are_accessible(self):
+        # O carrinho lateral (base.html) clona estes botões; type/aria-label
+        # garantem que não submetem formulário e são anunciados por leitor de tela.
+        self.add(self.product.id, quantity=2)
+        response = self.client.get('/carrinho/')
+        self.assertContains(response, 'class="qty-decrease"')
+        self.assertContains(response, 'aria-label="Diminuir quantidade"')
+        self.assertContains(response, 'aria-label="Aumentar quantidade"')
+        self.assertContains(response, 'aria-label="Remover item"')
+
     def test_add_to_cart_increments_existing_item(self):
         self.add(self.product.id)
         response = self.add(self.product.id)

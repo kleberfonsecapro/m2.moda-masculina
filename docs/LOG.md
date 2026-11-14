@@ -232,3 +232,22 @@ clique abre `.cart-sidebar`; `/m/` 375px com o carrinho no canto. `./scripts/tes
 **Commit** — branch `feat/botao-adicionar-carrinho`.
 
 **Docs** — este LOG.
+
+## 2026-11-14 — Botões + e − do carrinho
+
+**O quê** — carrinho lateral: o "Qtd: N" em texto e os botões −/+ soltos (sem estilo, esticados
+ao lado da lixeira) viraram um contador `[− N +]` abaixo do preço, com a lixeira à direita.
+`.qty-control` (página `/carrinho/` e lateral): botões 38px (32px na lateral), cantos
+arredondados, hover na cor de destaque, `:focus-visible` e `type="button"` + `aria-label`.
+
+**Por quê** — pedido do PO; na lateral os botões quase não eram clicáveis e não mostravam a
+quantidade junto deles.
+
+**Evidência** — navegador local 1280px: na lateral + muda 2→3 e − volta para 2, badge
+acompanha; `./scripts/test.sh` → 219 OK (1 teste novo em `StoreCartTest`).
+
+**Commit** — branch `feat/botao-adicionar-carrinho`. Edições paralelas de terceiros (lixeira
+colada no contador em `style.css`, `mobile/app.css`, `mobile/catalog/cart.html`) ficaram fora do
+commit, no working tree.
+
+**Docs** — este LOG.

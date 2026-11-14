@@ -339,6 +339,27 @@
         }
     });
 
+    // Monta "[− qtd +]  lixeira" reaproveitando os botões da página /carrinho/:
+    // as classes qty-* e o data-key mantêm o clique delegado acima funcionando.
+    function buildSidebarActions(qty, decreaseBtn, increaseBtn, removeBtn) {
+        var actions = document.createElement('div');
+        actions.className = 'cart-sidebar-item-actions';
+        var control = document.createElement('div');
+        control.className = 'qty-control qty-control-sm';
+        if (decreaseBtn) control.appendChild(decreaseBtn.cloneNode(true));
+        if (qty) {
+            var value = document.createElement('span');
+            value.className = 'qty-value';
+            value.setAttribute('aria-live', 'polite');
+            value.textContent = qty.value;
+            control.appendChild(value);
+        }
+        if (increaseBtn) control.appendChild(increaseBtn.cloneNode(true));
+        actions.appendChild(control);
+        if (removeBtn) actions.appendChild(removeBtn.cloneNode(true));
+        return actions;
+    }
+
     function loadCart() {
         fetch('/carrinho/')
             .then(r => r.text())
@@ -383,11 +404,6 @@
                             p.textContent = variant.textContent;
                             infoDiv.appendChild(p);
                         }
-                        if (qty) {
-                            var pQty = document.createElement('p');
-                            pQty.textContent = 'Qtd: ' + qty.value;
-                            infoDiv.appendChild(pQty);
-                        }
                         if (total) {
                             var pTotal = document.createElement('p');
                             var strong = document.createElement('strong');
@@ -395,10 +411,8 @@
                             pTotal.appendChild(strong);
                             infoDiv.appendChild(pTotal);
                         }
+                        infoDiv.appendChild(buildSidebarActions(qty, decreaseBtn, increaseBtn, removeBtn));
                         itemDiv.appendChild(infoDiv);
-                        if (removeBtn) itemDiv.appendChild(removeBtn.cloneNode(true));
-                        if (decreaseBtn) itemDiv.appendChild(decreaseBtn.cloneNode(true));
-                        if (increaseBtn) itemDiv.appendChild(increaseBtn.cloneNode(true));
                         sidebarItems.appendChild(itemDiv);
                     });
                     if (sidebarFooter) sidebarFooter.style.display = 'block';
