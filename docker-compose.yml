@@ -51,7 +51,9 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1', 8000), 2); s.close()"]
+      # Precisa provar que a aplicação responde, não só que a porta abriu:
+      # socket aberto com Django em 500 já aprovou deploy quebrado (D-080).
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 30
@@ -84,7 +86,9 @@ services:
       - media_volume:/media:ro
       - ./nginx/certs:/etc/nginx/certs:ro
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "--no-check-certificate", "https://127.0.0.1/"]
+      # `/healthz` e um endpoint dedicado: a home deixa de ser o probe, entao
+      # uma pagina quebrada nao derruba o deploy por timeout de healthcheck.
+      test: ["CMD", "wget", "-q", "--spider", "--no-check-certificate", "https://127.0.0.1/healthz"]
       interval: 10s
       timeout: 5s
       retries: 30

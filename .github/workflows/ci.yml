@@ -561,10 +561,43 @@ jobs:
             git fetch --prune origin main
             git reset --hard origin/main
 
+            # O nginx roda como UID/GID 101. Certificados criados como root
+            # (0600) sao ilegiveis para ele e derrubam o container em loop.
+            # Tenta corrigir sem sudo; se nao conseguir, avisa e segue - o
+            # fail-fast abaixo mostrara o erro real do nginx.
+            if [ -d nginx/certs ]; then
+              for f in nginx/certs/*.pem; do
+                [ -e "$f" ] || continue
+                if ! chgrp 101 "$f" 2>/dev/null; then
+                  echo "AVISO: sem permissao para aplicar o grupo 101 em $f."
+                  echo "        Se o nginx falhar, rode: sudo chown root:101 nginx/certs/*.pem"
+                  continue
+                fi
+                case "$f" in
+                  *key*.pem) chmod 640 "$f" ;;
+                  *)         chmod 644 "$f" ;;
+                esac
+              done
+            fi
+
             docker compose up -d --build --remove-orphans
 
             i=0
             while [ "$i" -lt 36 ]; do
+              # Fail-fast: container em restarting/exited/dead nunca ficara
+              # healthy. Abortar cedo evita 3 minutos de espera inutil.
+              for nome in m2-django m2-nginx; do
+                estado="$(docker inspect -f '{{.State.Status}}' "$nome" 2>/dev/null || echo missing)"
+                case "$estado" in
+                  restarting|exited|dead)
+                    echo "ERRO: $nome em estado '$estado'."
+                    docker compose ps
+                    docker logs --tail=100 "$nome" 2>&1 || true
+                    exit 1
+                    ;;
+                esac
+              done
+
               django_health="$(docker inspect -f '{{.State.Health.Status}}' m2-django 2>/dev/null || echo unknown)"
               nginx_health="$(docker inspect -f '{{.State.Health.Status}}' m2-nginx 2>/dev/null || echo unknown)"
               if [ "$django_health" = "healthy" ] && [ "$nginx_health" = "healthy" ]; then

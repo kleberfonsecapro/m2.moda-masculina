@@ -235,6 +235,42 @@ class HomeViewTest(TestCase):
         self.assertContains(response, 'Camisa')
 
 
+class ProductWithoutImageTest(TestCase):
+    """Regressão D-080: produto sem arquivo de imagem não pode derrubar a vitrine.
+
+    `FieldFile.url` levanta ValueError quando não há arquivo associado; sem a
+    guarda nos templates, a home respondia 500 e o healthcheck do nginx (que usa
+    `/`) reprovava o deploy.
+    """
+
+    def setUp(self):
+        self.category = Category.objects.create(name='Camisas', slug='camisas')
+        self.product = Product.objects.create(
+            category=self.category,
+            name='Camisa sem foto',
+            slug='camisa-sem-foto',
+            description='Desc',
+            price=Decimal('100.00'),
+            stock=5,
+            available=True,
+        )
+
+    def test_home_renders_product_without_image(self):
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Camisa sem foto')
+
+    def test_product_list_renders_product_without_image(self):
+        response = self.client.get('/produtos/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Camisa sem foto')
+
+    def test_product_detail_renders_product_without_image(self):
+        response = self.client.get(self.product.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Camisa sem foto')
+
+
 class ProductListViewTest(TestCase):
     def setUp(self):
         self.category = Category.objects.create(name='Camisas', slug='camisas')
