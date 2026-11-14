@@ -5,7 +5,7 @@
 # Ativação (uma vez por clone):
 #   make hooks        # git config core.hooksPath scripts/hooks
 #
-# O hook roda a MESMA suíte do CI. Se o docker estiver ausente ou o ambiente
+# O hook roda a suíte completa. Se o docker estiver ausente ou o ambiente
 # não estiver pronto (.env/rede), o push é bloqueado em vez de "passar verde"
 # por engano — o falso verde é justamente o problema que a R1 corrige.
 #

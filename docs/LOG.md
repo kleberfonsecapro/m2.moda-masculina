@@ -123,3 +123,16 @@ Formato: **O quê** / **Por quê** / **Evidência** / **Commit** / **Docs**. Cur
 — devolvia 301 em toda requisição e a suíte acusava 123 falhas falsas, mascarando o resultado real.
 
 **Evidência** — `scripts/test.sh` com `DEBUG=False` no `.env` → `Ran 206 tests ... OK`.
+
+## 2026-11-14 — Remoção do GitHub Actions (recomeço do CI/CD)
+
+**O quê** — removido `.github/workflows/ci.yml` e as referências operacionais ao pipeline
+(README, comentários de `requirements-dev.txt`, `pyproject.toml`, `.coveragerc`, `scripts/`,
+`BASELINE.md`, `PROGRESSO.md`). No GitHub: proteção da `main`, secrets `DEPLOY_*`, variable
+`DEPLOY_ENABLE`, environment `production` e histórico de execuções apagados.
+
+**Por quê** — decisão do humano: recomeçar o CI/CD do zero.
+
+**Impacto** — não há mais deploy automático. A produção segue no ar no último commit implantado.
+Lint, testes e cobertura continuam disponíveis localmente (`scripts/lint.sh`, `scripts/test.sh`,
+`scripts/coverage.sh`) e no hook `pre-push`. Entradas anteriores deste LOG mantidas como histórico.

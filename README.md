@@ -120,11 +120,11 @@ scripts/test.sh
 # Apenas alguns apps
 scripts/test.sh catalog orders
 
-# Lint com a mesma versão do CI (container efêmero, nada no host)
+# Lint com versões fixadas (container efêmero, nada no host)
 scripts/lint.sh                            # relatório completo
-scripts/lint.sh --select E9,F63,F7,F82     # gate bloqueante do CI
+scripts/lint.sh --select E9,F63,F7,F82     # somente erros reais
 
-# Cobertura (mesmo relatório do artefato do CI)
+# Cobertura
 scripts/coverage.sh
 ```
 
@@ -151,64 +151,11 @@ SKIP_TESTS=1 git push
 Os arquivos de teste são excluídos da imagem Docker via `.dockerignore` — não rodam em produção.
 É por isso que a suíte roda com o código fonte montado do host.
 
-## CI/CD (GitHub Actions)
-
-Pipeline definido em `.github/workflows/ci.yml`. Roda em Pull Requests e em push para `main` (e manualmente via `workflow_dispatch`).
-
-### Gates
-
-| Job | Ferramenta | Bloqueia |
-| --- | --- | --- |
-| `lint` | Ruff + Black | Ruff em erros reais (`E9,F63,F7,F82`); demais regras e Black são advisory |
-| `test` | Django test runner + coverage | Testes (SQLite em memória) e `manage.py check` |
-| `sast` | Semgrep (`p/python`, `p/django`, `p/security-audit`) | Achados de severidade `ERROR` (em PR: apenas achados novos, via baseline) |
-| `secrets` | Gitleaks | Segredos na árvore atual; histórico do Git é advisory |
-| `sca` | Trivy filesystem | CVEs `HIGH`/`CRITICAL` corrigíveis nas dependências resolvidas e misconfigurações nos Dockerfiles |
-| `container` | Buildx + Trivy image | CVEs `HIGH`/`CRITICAL` corrigíveis nas imagens backend e nginx |
-| `deploy` | SSH + Docker Compose | Só após todos os gates, em `main` |
-
-Relatórios SARIF são enviados ao GitHub Code Scanning (aba **Security**) e também ficam disponíveis como artefatos do workflow. O job `container` gera SBOM CycloneDX de ambas as imagens.
-
-> O `requirements.txt` usa ranges (`>=x,<y`), que o Trivy não resolve. Por isso o job `sca` instala as dependências e escaneia o `pip freeze` resolvido.
-
-### Configuração necessária no GitHub
-
-1. **Secrets** (Settings → Secrets and variables → Actions, no escopo do repositório ou no environment `production`):
-   - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_HOST_FINGERPRINT`, `DEPLOY_PATH`
-   - `DEPLOY_PORT` (opcional, padrão `22`)
-   - `DEPLOY_SSH_KEY` é a chave **privada** completa (com `-----BEGIN ...-----`), não o caminho do arquivo.
-   - `DEPLOY_HOST_FINGERPRINT` é o SHA256 da chave pública do host, não o conteúdo da chave:
-     ```bash
-     ssh-keyscan -t ed25519 <host> 2>/dev/null | ssh-keygen -lf -
-     # saída: 256 SHA256:xxxxx... host (ED25519)  -> use o SHA256:...
-     ```
-   - O job tem um passo "Verificar secrets de deploy" que falha com a lista dos nomes ausentes antes de tentar o SSH.
-2. **Variable** `DEPLOY_ENABLED` (opcional): é um *kill switch*. Ausente ou com qualquer valor diferente de `false`, o deploy roda normalmente em push na `main`; com `false`, ele é desligado. Se for criar, use uma *repository variable* (aba `Variables`) — variable de environment ou secret não é lida pelo `if` do job.
-3. **Environment** `production` (Settings → Environments). Reviewers são **opcionais**: sem eles o deploy é automático; com eles o job para em *Waiting* até aprovação manual.
-4. **Branch protection** em `main` exigindo os checks `Lint`, `Tests`, `SAST (Semgrep)`, `Secrets (Gitleaks)`, `SCA (Trivy)` e `Container (build + Trivy)`, e proibindo push direto.
-5. **Code scanning**: mantenha o *default setup* desabilitado (Settings → Code security), pois o pipeline envia SARIF próprio.
-
-O deploy faz `git fetch` + `git reset --hard origin/main` + `docker compose up -d --build --remove-orphans`, valida o `healthcheck` de `m2-django` e `m2-nginx` e **não executa `seed.py`** (seed é bootstrap, não deploy).
+## Manutenção
 
 ### Troubleshooting
 
-**`Deploy (production)` aparece como *Skipped*.** O `if` do job deu falso; o GitHub não tentou conectar na VPS. Causas:
-
-1. Algum dos seis gates falhou — `deploy` depende de `needs: [lint, test, sast, secrets, sca, container]`.
-2. A variable `DEPLOY_ENABLED` existe com o valor exato `false` (kill switch ligado).
-3. O evento não foi push na `main` nem `workflow_dispatch` (ex.: execução vinda de um PR).
-
-O deploy é *opt-out*, então uma variable ausente **não** impede a execução.
-
-Se o status for *Waiting* em vez de *Skipped*, o environment `production` tem reviewers exigindo aprovação manual.
-
-Atenção: um job skipped **não reprova o workflow** — o run aparece verde mesmo sem deploy. Confira o job, não só o status do run.
-
-**Deploy falha com `error: missing server host`.** `secrets.DEPLOY_HOST` chegou vazio — o secret não existe, está com outro nome ou foi criado como *variable*. O passo "Verificar secrets de deploy" lista os nomes ausentes antes de tentar o SSH.
-
-**Warning `Unexpected input(s) 'script_stop'`.** Esse input foi removido da action na v1.2.5. O script já usa `set -eu`, que aborta no primeiro erro.
-
-**`m2-nginx` em loop com `cannot load certificate key ... Permission denied`.** O nginx roda como UID/GID 101 e a chave do certificado está legível apenas por root (`0600`). Correção única no `DEPLOY_PATH`:
+**`m2-nginx` em loop com `cannot load certificate key ... Permission denied`.** O nginx roda como UID/GID 101 e a chave do certificado está legível apenas por root (`0600`). Correção única, no diretório do projeto na VPS:
 
 ```bash
 sudo chown root:101 nginx/certs/localhost.pem nginx/certs/localhost-key.pem
@@ -217,23 +164,23 @@ sudo chmod 644 nginx/certs/localhost.pem
 docker compose restart nginx
 ```
 
-Evite `chmod 644` na chave em produção (expõe o segredo a qualquer usuário do host). O script de deploy tenta aplicar `chgrp 101` + `chmod 640/644` automaticamente e avisa quando não tem permissão; o healthcheck aborta assim que o container entra em `restarting`, em vez de esperar 3 minutos.
+Evite `chmod 644` na chave em produção (expõe o segredo a qualquer usuário do host).
 
-**Deploy falha com `não é gravável pelo UID 100:101`.** Volumes criados por uma versão anterior rodando como root. Correção única, no `DEPLOY_PATH` da VPS:
+**`web` falha com `não é gravável pelo UID 100:101`.** Volumes criados por uma versão anterior rodando como root. Correção única, no diretório do projeto na VPS:
 
 ```bash
 docker compose run --rm --user root web chown -R 100:101 /app/backend/staticfiles /app/backend/media
 ```
 
-**Deploy falha com `network web not found`.** A rede é `external: true` e não é criada pelo compose: `docker network create web`.
+**`docker compose up` falha com `network web not found`.** A rede é `external: true` e não é criada pelo compose: `docker network create web`.
 
 ### Segurança do histórico
 
-O `.env` já foi versionado no passado e removido depois. Considere `SECRET_KEY`, senhas do MySQL e `ADMIN_PASSWORD` **comprometidos**: rotacione-os e limpe o histórico (BFG/filter-repo). Até lá, o scan de histórico do Gitleaks permanece advisory.
+O `.env` já foi versionado no passado e removido depois. Considere `SECRET_KEY`, senhas do MySQL e `ADMIN_PASSWORD` **comprometidos**: rotacione-os e limpe o histórico (BFG/filter-repo).
 
 ### Dívida técnica
 
-Itens já resolvidos e cobertos por regressão no pipeline:
+Itens já resolvidos e cobertos por testes de regressão:
 
 - **Injeção de fórmula em CSV** (`management/views.py`): `csv_safe()` prefixa células iniciadas por `=`, `+`, `-`, `@`, tab ou CR com apóstrofo. A supressão do Semgrep é pontual e justificada em comentário; `management/tests.py` fixa o comportamento.
 - **Dependências desatualizadas**: Django 5.2 LTS (`>=5.2,<5.3`) e Pillow 13 (`>=13.0,<14.0`). O baseline de 42 CVEs corrigíveis (37 HIGH, 5 CRITICAL) caiu para zero no `pip freeze` e nas imagens.

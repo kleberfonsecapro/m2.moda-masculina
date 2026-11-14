@@ -26,7 +26,7 @@ Aguardando humano → Feito (+ Bloqueado).
 | 2 | Fixo do falso verde (D-030, D-030b) | ✅ | `scripts/test.sh` → **206 testes OK** sem `collectstatic`; falha se 0 |
 | 3 | `requirements-dev.txt` + ruff + coverage (D-036, D-039) | 🟡 parcial | `scripts/lint.sh`, `scripts/coverage.sh`, baseline 84%; falta type-checker/lockfile |
 | 4 | `core.hooksPath` versionado (D-031) | ✅ | `scripts/install-hooks.sh` + `scripts/hooks/pre-push` (executado: suíte verde) |
-| 5 | CI de baseline | ✅ (upstream) | `.github/workflows/ci.yml` já existe: lint, testes+cobertura, Semgrep, Gitleaks, Trivy, deploy |
+| 5 | CI de baseline | ⏸️ removido | Pipeline do GitHub Actions removido em 2026-11-14 para recomeçar do zero |
 | 6 | Testes de caracterização D-001..D-003 | ✅ | 3 testes passam congelando os bugs; D-004 já corrigido upstream |
 | 7 | `docs/BASELINE.md` | ✅ | 206 testes · 84% · ruff gate 0 · 166 advisory · black 49 |
 | 8 | Plano de rollback | ✅ | `docs/R1-PLANO-ROLLBACK.md` |
