@@ -147,6 +147,10 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@m2moda.com.br
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
+    # O healthcheck do container fala HTTP puro com o gunicorn (127.0.0.1:8000).
+    # Sem a isencao, o probe recebe 301 para https:// e o container fica
+    # unhealthy em producao. O redirect externo continua a cargo do nginx.
+    SECURE_REDIRECT_EXEMPT = [r'^healthz$']
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True

@@ -3,6 +3,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from .admin_views import admin_logout
+from .views import healthz
 from mobile import views as mobile_views
 
 admin.site.site_header = 'M2 Moda Masculina - Administração'
@@ -10,6 +11,9 @@ admin.site.site_title = 'M2 Moda Masculina'
 admin.site.index_title = 'Painel de Controle'
 
 urlpatterns = [
+    # Probe de infraestrutura: sem barra final de proposito, para o healthcheck
+    # nao passar pelo APPEND_SLASH (301) antes de chegar na view.
+    path('healthz', healthz, name='healthz'),
     path('admin/logout/', admin_logout, name='admin_logout'),
     path('admin/', admin.site.urls),
     path('', include('catalog.urls', namespace='catalog')),
