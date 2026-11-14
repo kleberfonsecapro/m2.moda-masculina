@@ -152,9 +152,16 @@ Relatórios SARIF são enviados ao GitHub Code Scanning (aba **Security**) e tam
 
 ### Configuração necessária no GitHub
 
-1. **Secrets** (Settings → Secrets and variables → Actions):
+1. **Secrets** (Settings → Secrets and variables → Actions, no escopo do repositório ou no environment `production`):
    - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_HOST_FINGERPRINT`, `DEPLOY_PATH`
    - `DEPLOY_PORT` (opcional, padrão `22`)
+   - `DEPLOY_SSH_KEY` é a chave **privada** completa (com `-----BEGIN ...-----`), não o caminho do arquivo.
+   - `DEPLOY_HOST_FINGERPRINT` é o SHA256 da chave pública do host, não o conteúdo da chave:
+     ```bash
+     ssh-keyscan -t ed25519 <host> 2>/dev/null | ssh-keygen -lf -
+     # saída: 256 SHA256:xxxxx... host (ED25519)  -> use o SHA256:...
+     ```
+   - O job tem um passo "Verificar secrets de deploy" que falha com a lista dos nomes ausentes antes de tentar o SSH.
 2. **Variable** `DEPLOY_ENABLED` (opcional): é um *kill switch*. Ausente ou com qualquer valor diferente de `false`, o deploy roda normalmente em push na `main`; com `false`, ele é desligado. Se for criar, use uma *repository variable* (aba `Variables`) — variable de environment ou secret não é lida pelo `if` do job.
 3. **Environment** `production` (Settings → Environments). Reviewers são **opcionais**: sem eles o deploy é automático; com eles o job para em *Waiting* até aprovação manual.
 4. **Branch protection** em `main` exigindo os checks `Lint`, `Tests`, `SAST (Semgrep)`, `Secrets (Gitleaks)`, `SCA (Trivy)` e `Container (build + Trivy)`, e proibindo push direto.
@@ -175,6 +182,10 @@ O deploy é *opt-out*, então uma variable ausente **não** impede a execução.
 Se o status for *Waiting* em vez de *Skipped*, o environment `production` tem reviewers exigindo aprovação manual.
 
 Atenção: um job skipped **não reprova o workflow** — o run aparece verde mesmo sem deploy. Confira o job, não só o status do run.
+
+**Deploy falha com `error: missing server host`.** `secrets.DEPLOY_HOST` chegou vazio — o secret não existe, está com outro nome ou foi criado como *variable*. O passo "Verificar secrets de deploy" lista os nomes ausentes antes de tentar o SSH.
+
+**Warning `Unexpected input(s) 'script_stop'`.** Esse input foi removido da action na v1.2.5. O script já usa `set -eu`, que aborta no primeiro erro.
 
 **Deploy falha com `não é gravável pelo UID 100:101`.** Volumes criados por uma versão anterior rodando como root. Correção única, no `DEPLOY_PATH` da VPS:
 

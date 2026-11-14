@@ -521,6 +521,28 @@ jobs:
       group: production-deploy
       cancel-in-progress: false
     steps:
+      - name: Verificar secrets de deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST_FINGERPRINT: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          faltando=""
+          for nome in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_HOST_FINGERPRINT DEPLOY_PATH; do
+            if [ -z "$(printenv "$nome")" ]; then
+              faltando="$faltando $nome"
+            fi
+          done
+          if [ -n "$faltando" ]; then
+            echo "::error::Secrets de deploy ausentes:$faltando"
+            echo "Configure em Settings -> Secrets and variables -> Actions, no escopo do repositorio ou no environment 'production'."
+            echo "Fingerprint do host: ssh-keyscan -t ed25519 <host> 2>/dev/null | ssh-keygen -lf -"
+            exit 1
+          fi
+          echo "Secrets de deploy presentes."
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
@@ -529,8 +551,9 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
           fingerprint: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
-          script_stop: true
           command_timeout: 20m
+          # A action v1.2.5 nao possui mais o input script_stop (removido).
+          # O script ja usa `set -eu`, que aborta no primeiro erro.
           script: |
             set -eu
             cd "${{ secrets.DEPLOY_PATH }}"
