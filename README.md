@@ -155,12 +155,31 @@ Relatórios SARIF são enviados ao GitHub Code Scanning (aba **Security**) e tam
 1. **Secrets** (Settings → Secrets and variables → Actions):
    - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_HOST_FINGERPRINT`, `DEPLOY_PATH`
    - `DEPLOY_PORT` (opcional, padrão `22`)
-2. **Variable** `DEPLOY_ENABLED=true` para habilitar o job de deploy.
-3. **Environment** `production` com reviewers obrigatórios (Settings → Environments).
+2. **Variable** `DEPLOY_ENABLED=true` para habilitar o job de deploy. Precisa ser uma *repository variable* (aba `Variables`), não um secret e não uma variable de environment: o `if` do job é avaliado antes do environment ser resolvido.
+3. **Environment** `production` (Settings → Environments). Reviewers são **opcionais**: sem eles o deploy é automático; com eles o job para em *Waiting* até aprovação manual.
 4. **Branch protection** em `main` exigindo os checks `Lint`, `Tests`, `SAST (Semgrep)`, `Secrets (Gitleaks)`, `SCA (Trivy)` e `Container (build + Trivy)`, e proibindo push direto.
 5. **Code scanning**: mantenha o *default setup* desabilitado (Settings → Code security), pois o pipeline envia SARIF próprio.
 
 O deploy faz `git fetch` + `git reset --hard origin/main` + `docker compose up -d --build --remove-orphans`, valida o `healthcheck` de `m2-django` e `m2-nginx` e **não executa `seed.py`** (seed é bootstrap, não deploy).
+
+### Troubleshooting
+
+**`Deploy (production)` aparece como *Skipped*.** O `if` do job deu falso; o GitHub não tentou conectar na VPS. Causas, em ordem de frequência:
+
+1. A variable `DEPLOY_ENABLED` não existe.
+2. Foi criada como *secret* (`secrets.DEPLOY_ENABLED`) ou como variable de *environment*, em vez de repository variable.
+3. O valor não é exatamente `true` (a comparação é case-sensitive: `True`, `TRUE`, `1` ou `true ` não habilitam).
+4. Algum dos seis gates falhou — `deploy` depende de `needs: [lint, test, sast, secrets, sca, container]`.
+
+Se o status for *Waiting* em vez de *Skipped*, o environment `production` tem reviewers exigindo aprovação manual.
+
+**Deploy falha com `não é gravável pelo UID 100:101`.** Volumes criados por uma versão anterior rodando como root. Correção única, no `DEPLOY_PATH` da VPS:
+
+```bash
+docker compose run --rm --user root web chown -R 100:101 /app/backend/staticfiles /app/backend/media
+```
+
+**Deploy falha com `network web not found`.** A rede é `external: true` e não é criada pelo compose: `docker network create web`.
 
 ### Segurança do histórico
 
