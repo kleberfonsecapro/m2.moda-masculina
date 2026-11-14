@@ -1017,3 +1017,56 @@ class CartShippingTest(TestCase):
         self.assertEqual(order.shipping_method, '')
         self.assertEqual(order.shipping_cost, Decimal('0'))
         self.assertEqual(order.total, Decimal('100.00'))
+
+
+class SalesCheckoutCharacterizationTest(TestCase):
+    """Caracterização do checkout do PDV (D-001).
+
+    ATENÇÃO: este teste congela o comportamento ATUAL, que é um bug. O 400 de
+    estoque é retornado DENTRO de transaction.atomic() sem set_rollback(True),
+    então o pedido criado antes da checagem é COMMITADO mesmo com HTTP 400.
+    A correção (R2) deve transformar este teste no seu oposto: nenhum pedido
+    persistido quando o checkout falha.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        self.user = User.objects.create_user(username='vendedor', password='123')
+        self.category = Category.objects.create(name='Roupas', slug='roupas')
+        self.product = Product.objects.create(
+            category=self.category, name='Camisa', slug='camisa',
+            description='Desc', price=Decimal('89.90'),
+            stock=10, available=True, image=get_test_image(),
+        )
+
+    def test_http_400_por_estoque_ainda_assim_persiste_pedido(self):
+        self.client.login(username='vendedor', password='123')
+        response = self.client.post(
+            '/vendas/adicionar/',
+            {'code': self.product.code, 'quantity': 3},
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+
+        # O estoque cai DEPOIS de o item entrar no carrinho: o checkout falha.
+        self.product.stock = 1
+        self.product.save(update_fields=['stock'])
+
+        response = self.client.post(
+            '/vendas/finalizar/',
+            {'payment_method': 'pix', 'customer_name': 'João', 'customer_phone': '11999999999'},
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Estoque insuficiente', response.json()['error'])
+
+        # Comportamento atual (bug D-001): o pedido foi commitado vazio.
+        self.assertEqual(Order.objects.count(), 1, 'D-001: pedido fantasma commitado')
+        self.assertEqual(OrderItem.objects.count(), 0)
+        self.assertEqual(Order.objects.get().items.count(), 0)
+        # O carrinho permanece intacto para o vendedor tentar de novo.
+        self.assertEqual(CartItem.objects.count(), 1)
+        # E o estoque não foi baixado (a falha ocorre antes do decremento).
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 1)

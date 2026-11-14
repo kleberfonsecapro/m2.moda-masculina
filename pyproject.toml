@@ -1,0 +1,27 @@
+# Configuração das ferramentas de desenvolvimento (não é dependência de runtime).
+#
+# O objetivo é ter UMA fonte para as regras: o `make lint` local e o job `lint`
+# do CI leem este arquivo, então "passa local, falha no CI" deixa de acontecer.
+# As regras de lint entram em modo relatório (AGENTS.md §7): o CI só bloqueia
+# erros reais (E9/F63/F7/F82), que continuam selecionados explicitamente lá.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+# Migrations são geradas pelo Django: não são código mantido à mão.
+exclude = [
+    "**/migrations/**",
+    "**/__pycache__/**",
+]
+
+[tool.black]
+target-version = ["py312"]
+line-length = 88
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | __pycache__
+  | migrations
+)/
+'''

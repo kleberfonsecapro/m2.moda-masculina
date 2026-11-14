@@ -1,0 +1,22 @@
+# Configuração do coverage para a suíte do backend.
+#
+# Fica em backend/ (e não no pyproject da raiz) porque tanto o CI quanto
+# scripts/coverage.sh executam a partir de backend/ — assim o arquivo é
+# detectado sem flags extras e o número local é o mesmo do CI.
+#
+# A cobertura mede CÓDIGO DE APLICAÇÃO: migrations, testes e entrypoints do
+# framework ficam de fora para o percentual não ser inflado artificialmente.
+
+[run]
+source = .
+omit =
+    */migrations/*
+    */tests.py
+    */tests/*
+    manage.py
+    */wsgi.py
+    */asgi.py
+
+[report]
+show_missing = true
+skip_covered = false
