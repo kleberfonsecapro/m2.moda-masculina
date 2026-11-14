@@ -90,7 +90,7 @@
 
                 <div style="display:flex;gap:10px;flex-wrap:wrap">
                     <button class="btn btn-primary btn-lg" onclick="handleBuy()">
-                        <i class="fas fa-shopping-bag"></i> Comprar Agora
+                        <i class="fas fa-shopping-bag"></i> Adicionar ao Carrinho
                     </button>
                     <a href="https://wa.me/{{ whatsapp_number }}?text=Ol%C3%A1,%20tenho%20interesse%20no%20produto%20{{ product.name|urlencode }}%20-%20R$%20{{ product.effective_price|floatformat:2|urlencode }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-lg">
                         <i class="fab fa-whatsapp"></i> WhatsApp
@@ -151,7 +151,7 @@
                     <button class="btn btn-primary btn-sm btn-buy"
                             data-product='{"id":{{ product.id }},"name":"{{ product.name|escapejs }}","image":"{% if product.image %}{{ product.image.url|escapejs }}{% endif %}","price":"{{ product.effective_price|floatformat:2 }}","has_variants":false,"variants":[]}'
                             onclick="openQuickModal(this)">
-                        <i class="fas fa-shopping-bag"></i> Comprar
+                        <i class="fas fa-shopping-bag"></i> Adicionar ao Carrinho
                     </button>
                 </div>
             </div>

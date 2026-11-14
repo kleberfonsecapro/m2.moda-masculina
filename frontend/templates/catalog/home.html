@@ -63,7 +63,7 @@
                     <button class="btn btn-primary btn-sm btn-buy"
                             data-product='{"id":{{ product.id }},"name":"{{ product.name|escapejs }}","image":"{% if item.image %}{{ item.image.url|escapejs }}{% elif product.image %}{{ product.image.url|escapejs }}{% endif %}","price":"{{ product.effective_price|floatformat:2 }}","has_variants":{{ product.has_variants|lower }},"variants":[{% for v in product.sorted_sizes %}{"id":{{ v.id }},"size":"{{ v.size|escapejs }}","stock":{{ v.stock }}}{% if not forloop.last %},{% endif %}{% endfor %}]}'
                             onclick="openQuickModal(this)">
-                        <i class="fas fa-shopping-bag"></i> Comprar
+                        <i class="fas fa-shopping-bag"></i> Adicionar ao Carrinho
                     </button>
                 </div>
             </div>
@@ -131,7 +131,7 @@
                     <button class="btn btn-primary btn-sm btn-buy"
                             data-product='{"id":{{ product.id }},"name":"{{ product.name|escapejs }}","image":"{% if product.image %}{{ product.image.url|escapejs }}{% endif %}","price":"{{ product.effective_price|floatformat:2 }}","has_variants":{{ product.has_variants|lower }},"variants":[{% for v in product.sorted_sizes %}{"id":{{ v.id }},"size":"{{ v.size|escapejs }}","stock":{{ v.stock }}}{% if not forloop.last %},{% endif %}{% endfor %}]}'
                             onclick="openQuickModal(this)">
-                        <i class="fas fa-shopping-bag"></i> Comprar
+                        <i class="fas fa-shopping-bag"></i> Adicionar ao Carrinho
                     </button>
                 </div>
             </div>

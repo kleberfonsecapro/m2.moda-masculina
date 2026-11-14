@@ -200,3 +200,18 @@ HTTPS; `/admin/` → 302 (login); `/static/admin/css/base.css` → 200; `docker 
 **Commit** — sem mudança de código; apenas registro.
 
 **Docs** — este LOG.
+
+## 2026-11-14 — Botão "Comprar" passa a se chamar "Adicionar ao Carrinho"
+
+**O quê** — rótulo dos botões da vitrine (home, listagem, detalhe e relacionados) trocado de
+"Comprar"/"Comprar Agora" para "Adicionar ao Carrinho". Só texto: `onclick`, `data-product`,
+classes e rotas inalterados.
+
+**Por quê** — o botão já executava `openQuickModal`/`addToCart` (não finaliza compra); o rótulo
+agora descreve a ação real e fica igual ao do modal rápido (`base.html`) e da versão mobile.
+
+**Evidência** — `./scripts/test.sh` → 216 testes OK (3 novos de regressão em `catalog/tests.py`).
+
+**Commit** — branch `feat/botao-adicionar-carrinho`.
+
+**Docs** — este LOG.

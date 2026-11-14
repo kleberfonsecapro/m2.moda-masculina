@@ -234,6 +234,11 @@ class HomeViewTest(TestCase):
         response = self.client.get('/')
         self.assertContains(response, 'Camisa')
 
+    def test_home_buy_button_says_add_to_cart(self):
+        response = self.client.get('/')
+        self.assertContains(response, 'Adicionar ao Carrinho')
+        self.assertNotContains(response, '</i> Comprar')
+
 
 class ProductWithoutImageTest(TestCase):
     """Regressão D-080: produto sem arquivo de imagem não pode derrubar a vitrine.
@@ -308,6 +313,11 @@ class ProductListViewTest(TestCase):
         response = self.client.get('/produtos/')
         self.assertTemplateUsed(response, 'catalog/product_list.html')
 
+    def test_product_list_buy_button_says_add_to_cart(self):
+        response = self.client.get('/produtos/')
+        self.assertContains(response, 'Adicionar ao Carrinho')
+        self.assertNotContains(response, '</i> Comprar')
+
 
 class ProductDetailViewTest(TestCase):
     def setUp(self):
@@ -343,6 +353,11 @@ class ProductDetailViewTest(TestCase):
     def test_product_detail_uses_correct_template(self):
         response = self.client.get('/produto/camisa-teste/')
         self.assertTemplateUsed(response, 'catalog/product_detail.html')
+
+    def test_product_detail_buy_button_says_add_to_cart(self):
+        response = self.client.get('/produto/camisa-teste/')
+        self.assertContains(response, 'Adicionar ao Carrinho')
+        self.assertNotContains(response, '</i> Comprar')
 
     def test_product_detail_shows_related_products(self):
         other = Product.objects.create(
