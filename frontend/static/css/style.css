@@ -393,8 +393,21 @@ img { max-width: 100%; height: auto; display: block; }
 .qty-control-sm button { width: 32px; height: 32px; font-size: 1.05rem; }
 .qty-control-sm .qty-value { width: 36px; height: 32px; font-size: 0.85rem; }
 .cart-item-total { font-weight: 700; min-width: 80px; text-align: right; font-size: 1rem; }
-.cart-item-remove { color: var(--color-mid-gray); padding: 8px; }
-.cart-item-remove:hover { color: var(--color-error); }
+
+/* Remove button follows qty-control pattern for visual consistency */
+.cart-item-remove {
+    width: 34px; height: 34px; border: none; background: transparent;
+    color: var(--color-mid-gray); font-size: 1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    border-left: 1px solid var(--color-light-gray);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin-left: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+.cart-item-remove:hover {
+    background: var(--color-off-white);
+    color: var(--color-error);
+}
 
 .cart-summary {
     flex: 0 0 300px; background: var(--color-off-white); border: 1px solid var(--color-light-gray);

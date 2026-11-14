@@ -31,13 +31,13 @@
                     <button type="button" class="mobile-qty-btn qty-down" data-key="{{ item.key }}">−</button>
                     <span class="mobile-qty-value">{{ item.quantity }}</span>
                     <button type="button" class="mobile-qty-btn qty-up" data-key="{{ item.key }}">+</button>
+                    <button type="button" class="mobile-qty-btn mobile-qty-remove" data-key="{{ item.key }}" aria-label="Remover">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
             </div>
             <div class="mobile-list-meta">
                 <div class="mobile-list-price">R$ {{ item.total|floatformat:2 }}</div>
-                <button type="button" class="mobile-icon-btn remove-item" data-key="{{ item.key }}" style="margin-top: 8px; color: #dc3545; background: transparent; width: 36px; height: 36px;" aria-label="Remover">
-                    <i class="fas fa-trash" style="font-size: 1rem;"></i>
-                </button>
             </div>
         </li>
         {% endfor %}
@@ -182,7 +182,7 @@
     document.querySelectorAll('.qty-down').forEach(btn => {
         btn.addEventListener('click', () => updateItem(btn.dataset.key, 'decrease'));
     });
-    document.querySelectorAll('.remove-item').forEach(btn => {
+    document.querySelectorAll('.mobile-qty-remove').forEach(btn => {
         btn.addEventListener('click', () => {
             if (confirm('Remover item do carrinho?')) updateItem(btn.dataset.key, 'remove');
         });

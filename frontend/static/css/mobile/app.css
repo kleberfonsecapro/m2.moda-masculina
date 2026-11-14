@@ -645,6 +645,25 @@ body {
     padding: 0 8px;
 }
 
+/* Remove button follows mobile-qty-btn pattern for visual consistency */
+.mobile-qty-remove {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    border: none;
+    color: #dc3545;
+    font-size: 1.1rem;
+    border-left: 1px solid #dee2e6;
+    border-radius: 0 10px 10px 0;
+}
+
+.mobile-qty-remove:active {
+    background: #e9ecef;
+}
+
 .mobile-sheet {
     position: fixed;
     bottom: 0;
