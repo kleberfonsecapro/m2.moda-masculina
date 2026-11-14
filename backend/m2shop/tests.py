@@ -3,7 +3,7 @@ import json
 from unittest import mock
 
 from django.db import OperationalError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 
 class HealthzTest(TestCase):
@@ -29,3 +29,15 @@ class HealthzTest(TestCase):
         response = self.client.get('/healthz')
 
         self.assertFalse(response.has_header('Location'))
+
+    @override_settings(
+        SECURE_SSL_REDIRECT=True,
+        SECURE_REDIRECT_EXEMPT=[r'^healthz$'],
+    )
+    def test_healthz_is_exempt_from_ssl_redirect_in_production(self):
+        # Reproduz producao (DEBUG=False): o probe chega via HTTP puro.
+        response = self.client.get('/healthz')
+        self.assertEqual(response.status_code, 200)
+
+        # As demais rotas continuam sendo redirecionadas para HTTPS.
+        self.assertEqual(self.client.get('/').status_code, 301)
