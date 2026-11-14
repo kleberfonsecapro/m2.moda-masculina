@@ -32,3 +32,6 @@ Thumbs.db
 
 # Certificados locais de desenvolvimento (gerados com mkcert)
 nginx/certs/
+
+# Log do deploy na VPS (scripts/vps/deploy-m2.sh)
+logs/

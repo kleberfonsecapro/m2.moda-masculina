@@ -151,6 +151,39 @@ SKIP_TESTS=1 git push
 Os arquivos de teste são excluídos da imagem Docker via `.dockerignore` — não rodam em produção.
 É por isso que a suíte roda com o código fonte montado do host.
 
+## CI/CD (GitHub Actions)
+
+Fluxo: `git push origin main` → `.github/workflows/ci.yml` roda os gates → se **todos** passarem, o job
+`deploy` implanta o mesmo commit na VPS. Em Pull Requests e outras branches roda só os gates.
+
+| Job | Ferramenta | Bloqueia |
+| --- | --- | --- |
+| `lint` | Ruff + Black | Ruff em erros reais (`E9,F63,F7,F82`); o resto é advisory |
+| `test` | Django test runner + coverage | Testes e `manage.py check` |
+| `sast` | Semgrep | Achados `ERROR` (em PR: só os novos) |
+| `secrets` | Gitleaks | Segredos na árvore atual (histórico é advisory) |
+| `sca` | Trivy filesystem | CVEs `HIGH`/`CRITICAL` corrigíveis e misconfig nos Dockerfiles |
+| `container` | Buildx + Trivy image | CVEs `HIGH`/`CRITICAL` corrigíveis nas imagens |
+| `deploy` | SSH (forced command) | Só em `main`, após todos os gates |
+
+### Como o deploy funciona
+
+O runner conecta na VPS com uma chave que **só executa** `/home/kleber/deploy-m2.sh`
+(`command=...,restrict` no `authorized_keys`: sem shell, sem túnel) e envia apenas o SHA do commit.
+O script (`scripts/vps/deploy-m2.sh`) valida o SHA, confere que ele está na `main`, faz
+`git reset --hard <sha>`, `docker compose up -d --build`, espera `m2-django`/`m2-nginx` ficarem
+`healthy` e testa `/healthz`. Um deploy por vez (`flock`); log em `logs/deploy.log` na VPS.
+
+Configuração (environment `production`, liberado só para a `main`):
+`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (chave privada dedicada) e `DEPLOY_KNOWN_HOSTS`
+(linha `IP ssh-ed25519 AAAA...` da chave do host).
+
+Ao alterar `scripts/vps/deploy-m2.sh`, reinstale na VPS:
+`install -m 755 scripts/vps/deploy-m2.sh /home/kleber/deploy-m2.sh`.
+
+**Rollback** (na VPS): `/home/kleber/deploy-m2.sh <sha-anterior> --rollback`. Sem `--rollback`, o
+script recusa voltar para um commit mais antigo que o de produção.
+
 ## Manutenção
 
 ### Troubleshooting

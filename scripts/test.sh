@@ -21,6 +21,11 @@ cd "$ROOT"
 LOG="${TMPDIR:-/tmp}/m2-test.log"
 APPS="$*"
 
+# backend/ entra montado como somente-leitura, mas o compose monta volumes em
+# backend/media e backend/staticfiles: o ponto de montagem precisa existir no
+# host, senão um clone novo falha com "read-only file system" (ambos gitignored).
+mkdir -p backend/media backend/staticfiles
+
 echo "[test] montando backend/ e rodando a suíte (log: ${LOG})"
 rc=0
 docker compose run --rm --no-deps --entrypoint sh \

@@ -136,3 +136,17 @@ Formato: **O quê** / **Por quê** / **Evidência** / **Commit** / **Docs**. Cur
 **Impacto** — não há mais deploy automático. A produção segue no ar no último commit implantado.
 Lint, testes e cobertura continuam disponíveis localmente (`scripts/lint.sh`, `scripts/test.sh`,
 `scripts/coverage.sh`) e no hook `pre-push`. Entradas anteriores deste LOG mantidas como histórico.
+
+## 2026-11-14 — CI/CD refeito: push na main → gates → deploy restrito
+
+**O quê** — `.github/workflows/ci.yml` restaurado (gates validados: lint, testes, Semgrep, Gitleaks,
+Trivy SCA/imagem) com job `deploy` novo: SSH com chave dedicada que na VPS só executa
+`/home/kleber/deploy-m2.sh` (`command=...,restrict`), recebendo apenas o SHA testado. Script versionado
+em `scripts/vps/deploy-m2.sh`. Secrets no environment `production` (só `main`). `scripts/test.sh`
+cria os pontos de montagem `backend/media`/`staticfiles` (clone novo falhava no `pre-push`).
+
+**Por quê** — o deploy anterior dava shell completo ao runner. Agora a chave vazada só conseguiria
+reimplantar um commit que já está na `main`.
+
+**Evidência** — testes na VPS: comandos arbitrários, injeção (`<sha>; id`), SHA inválido e port forward
+recusados; deploy do commit atual → healthy; voltar a commit antigo sem `--rollback` → recusado.
