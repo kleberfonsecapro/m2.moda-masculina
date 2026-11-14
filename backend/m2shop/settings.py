@@ -118,6 +118,16 @@ STORAGES = {
     },
 }
 
+# Durante os testes o manifesto de static não existe (ninguém roda collectstatic
+# antes de `manage.py test` em container limpo) e o ManifestStaticFilesStorage
+# derruba os testes que renderizam template com "Missing staticfiles manifest
+# entry" (D-030b). O storage simples lê os arquivos direto de STATICFILES_DIRS.
+# Produção continua usando o manifesto: este bloco só vale para o runner de testes.
+if 'test' in sys.argv or 'test_coverage' in sys.argv:
+    STORAGES['staticfiles'] = {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    }
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 

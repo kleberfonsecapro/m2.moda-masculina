@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#
+# Hook pre-push versionado (D-031).
+#
+# Ativação (uma vez por clone):
+#   make hooks        # git config core.hooksPath scripts/hooks
+#
+# O hook roda a MESMA suíte do CI. Se o docker estiver ausente ou o ambiente
+# não estiver pronto (.env/rede), o push é bloqueado em vez de "passar verde"
+# por engano — o falso verde é justamente o problema que a R1 corrige.
+#
+# Escape hatch consciente: SKIP_TESTS=1 git push ...
+set -euo pipefail
+
+if [ "${SKIP_TESTS:-0}" = "1" ]; then
+    echo "pre-push: testes ignorados por SKIP_TESTS=1" >&2
+    exit 0
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+    echo "pre-push: docker não encontrado; não é possível validar a suíte." >&2
+    echo "pre-push: instale o docker ou use SKIP_TESTS=1 para pular conscientemente." >&2
+    exit 1
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+if ! docker compose config >/dev/null 2>&1; then
+    echo "pre-push: docker compose inválido (falta .env? rede externa?)." >&2
+    echo "pre-push: corrija o ambiente ou use SKIP_TESTS=1." >&2
+    exit 1
+fi
+
+echo "pre-push: rodando a suíte antes do push..."
+if ! scripts/test.sh; then
+    echo "pre-push: suíte falhou — push cancelado." >&2
+    exit 1
+fi
+
+echo "pre-push: suíte verde."

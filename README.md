@@ -105,30 +105,51 @@ docker compose ps
 
 ## Testes
 
-154 testes automatizados (unitários + integração) divididos entre os 5 apps (catalog, cart, orders, accounts, shipping).
+203 testes automatizados (unitários + integração) divididos entre os apps (catalog, cart, orders,
+accounts, shipping, management e mobile).
+
+> ⚠️ **Não rode** `docker compose run --rm --no-deps web python manage.py test` diretamente.
+> A imagem de produção não embarca os testes (`.dockerignore`) e o Django responde
+> `Ran 0 tests ... OK` — falso verde (D-030). O script abaixo monta `backend/` e **falha** se
+> nenhum teste executar.
 
 ```bash
-# Rodar todos os testes
-docker compose run --rm --no-deps web python manage.py test
+# Suíte completa (com guarda contra "0 testes")
+scripts/test.sh
 
-# Rodar testes de um app específico
-docker compose run --rm --no-deps web python manage.py test shipping
+# Apenas alguns apps
+scripts/test.sh catalog orders
 
-# Rodar com verbose
-docker compose run --rm --no-deps web python manage.py test catalog cart orders accounts --verbosity=2
+# Lint com a mesma versão do CI (container efêmero, nada no host)
+scripts/lint.sh                            # relatório completo
+scripts/lint.sh --select E9,F63,F7,F82     # gate bloqueante do CI
+
+# Cobertura (mesmo relatório do artefato do CI)
+scripts/coverage.sh
 ```
 
-Os testes usam **SQLite em memória** (configurado automaticamente em `settings.py`), sem dependência do MySQL.
+Os testes usam **SQLite em memória** (configurado automaticamente em `settings.py`), sem dependência
+do MySQL e **sem exigir `collectstatic`** — durante os testes o storage de static é o simples (D-030b).
 
 ### Pre-push Hook
 
-Um git hook local executa os testes automaticamente antes de cada `git push`. Se falharem, o push é cancelado.
+O hook versionado em `scripts/hooks/pre-push` roda `scripts/test.sh` antes de cada `git push` e
+cancela o push se a suíte falhar — ou se não puder ser executada (Docker ausente/ambiente inválido).
 
-O hook está em `.git/hooks/pre-push` e monta o diretório `backend/` em modo leitura para disponibilizar os arquivos de teste no container.
+```bash
+# Ativar uma vez por clone
+scripts/install-hooks.sh
+
+# Pular conscientemente (ex.: push só de documentação sem ambiente Docker)
+SKIP_TESTS=1 git push
+```
+
+`core.hooksPath=scripts/hooks` mantém o hook **no repositório**; `.git/hooks` não é versionado.
 
 ### Produção
 
 Os arquivos de teste são excluídos da imagem Docker via `.dockerignore` — não rodam em produção.
+É por isso que a suíte roda com o código fonte montado do host.
 
 ## CI/CD (GitHub Actions)
 
