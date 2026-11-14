@@ -64,6 +64,9 @@ services:
     mem_reservation: 128m
     networks:
       - web
+      # Compartilhada com o Traefik global (/home/kleber/traefik) para que ele
+      # resolva "m2-nginx" e publique a aplicação na URL pública.
+      - traefik_global
     ports:
       - "8080:80"
       - "8443:443"
@@ -72,7 +75,9 @@ services:
       - media_volume:/media:ro
       - ./nginx/certs:/etc/nginx/certs:ro
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "--no-check-certificate", "https://127.0.0.1/"]
+      # /admin/login/ exercita nginx + gunicorn + banco sem depender dos dados
+      # do catálogo (a home quebra com produto sem imagem — D-080).
+      test: ["CMD", "wget", "-q", "--spider", "--no-check-certificate", "https://127.0.0.1/admin/login/"]
       interval: 10s
       timeout: 5s
       retries: 30
@@ -125,6 +130,9 @@ services:
 
 networks:
   web:
+    external: true
+  # Rede do Traefik global (stack /home/kleber/traefik). Criada por lá.
+  traefik_global:
     external: true
   db-network:
     internal: true

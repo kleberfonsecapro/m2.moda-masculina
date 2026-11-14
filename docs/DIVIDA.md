@@ -29,6 +29,7 @@
 | D-012 | `backend/cart/models.py:47` | `unique_together(cart,product,variant)` com `variant` nullable → MySQL trata NULL como distinto → item duplicado | 🟡 | G | 🔴 (migration) |
 | D-013 | `backend/shipping/services.py:40-47` | Faixa de CEP comparada como string, sem normalizar o valor gravado no admin | 🟡 | P | 🟢 |
 | D-014 | `backend/catalog/models.py:104-108` | `promotional_price` sem validação contra `price` → desconto negativo possível | 🟡 | P | 🟡 |
+| D-080 | `frontend/templates/catalog/product_list.html:44,79` | `{{ product.image.url }}` é renderizado **sem checar** se o arquivo existe → `ValueError: The 'image' attribute has no file associated with it` → **HTTP 500 na home** com qualquer produto sem imagem (visto em 2026-11-14, 2 produtos no banco) | 🟠 | P | 🟢 |
 
 ## B. Segurança
 
@@ -95,7 +96,7 @@
 | ID | Local | Problema | Sev | Esf. | Risco |
 | :-- | :-- | :-- | :-- | :-- | :-- |
 | D-059 | — | **Nenhum backup/DR**: sem dump, Borg, rclone, cron, alerta ou restore testado | 🔴 | G | 🟢 (roteiro do AGENTS.md §10) |
-| D-060 | `nginx/nginx.conf:8,14-15` | Nginx força `https://$host:8443` com cert `localhost.pem` → **TLS do Let's Encrypt contornado** | 🟠 | M | 🔴 (muda acesso público) |
+| D-060 | `nginx/nginx.conf:8,14-15` | Nginx forçava `https://$host:8443` com cert `localhost.pem` → **TLS do Let's Encrypt contornado**. ✅ **Resolvido no caminho público em 2026-11-14** (borda detectada por `X-Forwarded-Proto`); o redirect para `:8443` permanece só no acesso direto local. Ver `docs/TRAEFIK.md`. | 🟠 | M | 🔴 (muda acesso público) |
 | D-061 | `scripts/start.sh:24-27` | Copia `.env.example` → `.env` automaticamente, propagando `DEBUG=True` e senhas placeholder para produção | 🟠 | P | 🟡 |
 | D-062 | `backend/Dockerfile:7-13` | Single-stage: `gcc`, `libmariadb-dev`, `pkg-config` na imagem final | 🟡 | M | 🟢 |
 | D-063 | `backend/Dockerfile` (sem `USER`) | Container **inicia como root** e faz `chown -R` a cada boot (o processo final roda como `appuser` via `gosu`) | 🟡 | M | 🟡 |

@@ -62,3 +62,45 @@ Formato: **O quê** / **Por quê** / **Evidência** / **Commit** / **Docs**. Cur
 **Pendente (aguarda o humano)**
 - Rotação de `SECRET_KEY`, `MYSQL_PASSWORD` e `MYSQL_ROOT_PASSWORD` (o agente detecta; o humano rotaciona).
 - Aprovação para iniciar **R1** (backup + restore testado, fix do falso verde dos testes, caracterização, baseline, CI de baseline).
+
+---
+
+## 2026-11-14 — Publicação do M2 no Traefik global
+
+**O quê**
+- Descoberto que o Traefik em produção **não é** o stack `traefik-global/` deste repo: roda em
+  `/home/kleber/traefik` (projeto `traefik`, container `traefik_global`, Traefik v3.7.1, file provider
+  `dynamic.yml` + dashboard com basicauth). As cópias do repo estavam obsoletas (drift de D-075).
+- Adicionado `m2-nginx` à rede externa `traefik_global` (`docker-compose.yml`) para o Traefik
+  resolvê-lo por nome.
+- Adicionados routers `m2-http` (redirect) e `m2-https` (TLS/ACME) + service `m2` →
+  `http://m2-nginx:80` em `/home/kleber/traefik/dynamic.yml` (com backup datado no mesmo diretório).
+- `nginx/nginx.conf`: a porta 80 agora **serve o proxy** quando a requisição vem do Traefik
+  (`X-Forwarded-Proto` preenchido, TLS terminado na borda) e mantém o `301 → :8443` apenas no acesso
+  direto ao container. Resolve D-060 no caminho público, sem quebrar o acesso local.
+- `.env`: `ALLOWED_HOSTS` e `CSRF_TRUSTED_ORIGINS` passaram a incluir `m2moda.com.br`/`www`.
+- `nginx/certs/` gerado localmente (self-signed, gitignored) para o listener 443 — D-073.
+- Healthcheck do `m2-nginx` passou a sondar `/admin/login/` (o `/` retorna 500 por dados de teste
+  sem imagem — D-080; sonda de liveness não deve depender do catálogo).
+
+**Por quê**
+- Pedido do humano: deixar a aplicação registrada na borda para já receber a URL quando o domínio
+  for comprado, sem mudar a stack nem o comportamento interno.
+
+**Evidência**
+- `docker network inspect traefik_global` → `m2-nginx 172.18.0.6`.
+- `curl -k --resolve m2moda.com.br:443:127.0.0.1 https://m2moda.com.br/admin/login/` → **200**
+  (idem `/vendas/entrar/`, `/gerencial/entrar/`, `/carrinho/`); `http://…/` → **301** para https.
+- `docker logs traefik_global` → roteia `m2-https@file` → `http://m2-nginx:80`; ACME falha com
+  `NXDOMAIN` para `m2moda.com.br` (domínio ainda não comprado/apontado) — esperado.
+- `curl` local `:8443` e `inventarius`/`ffsystem` continuam respondendo (sem regressão).
+- `docker inspect m2-nginx` → `healthy`; suíte `manage.py test` → **Ran 200 tests ... OK**.
+- ⚠️ `GET /` continua **500** por dados de teste (`Product.image` vazio em 2 registros) — D-080,
+  fora desta mudança.
+
+**Commit**
+- Pendente (aguarda revisão humana).
+
+**Docs**
+- `docs/LOG.md` · `docs/DIVIDA.md` (D-060 atualizado, D-080 novo) · `docs/01-ARQUITETURA.md`.
+- Runbook: `docs/TRAEFIK.md`.

@@ -45,6 +45,12 @@ Envio de estáticos/mídia: nginx monta os volumes em :ro
 **Topologia de redes** (`docker-compose.yml:83-87`): `web` (externa, compartilhada com o Traefik) e
 `db-network` (**internal: true** — o banco não tem rota para a internet). Isolamento correto. ✅
 
+> **Atualização 2026-11-14:** o Traefik em produção **não** é o stack `traefik-global/` deste repo — ele
+> roda em `/home/kleber/traefik` (v3.7.1, projeto `traefik`). O `m2-nginx` foi conectado à rede externa
+> `traefik_global` e publicado por `dynamic.yml` (`m2-http`/`m2-https` → `http://m2-nginx:80`), com o TLS
+> terminado na borda e a porta 80 do nginx servindo proxy quando há `X-Forwarded-Proto`. O `web` continua
+> existindo para o `web`↔`nginx`. Runbook: `docs/TRAEFIK.md`.
+
 ## 2. Estrutura do código (monólito Django, 6 apps)
 
 ```
