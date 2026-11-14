@@ -496,17 +496,21 @@ jobs:
   # ---------------------------------------------------------------------------
   # 7. Deploy (produção)
   #    Só roda após TODOS os gates. Requer:
-  #      - environment "production" (com reviewers)
-  #      - variable DEPLOY_ENABLED=true
+  #      - environment "production" (reviewers são opcionais; bloqueiam o deploy)
   #      - secrets DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_HOST_FINGERPRINT
   #        e DEPLOY_PATH (opcional DEPLOY_PORT)
+  #    Opt-out: variable DEPLOY_ENABLED=false desliga o deploy. Ausente = ativo.
   #    Não executa seed.py: seed é operação de bootstrap, não de deploy.
   # ---------------------------------------------------------------------------
   deploy:
     name: Deploy (production)
     needs: [lint, test, sast, secrets, sca, container]
+    # Opt-out: o deploy roda por padrão em push na main. A variable
+    # DEPLOY_ENABLED só precisa existir para DESLIGAR (valor "false").
+    # Antes era opt-in (`== 'true'`), que falhava silenciosamente como
+    # "skipped" quando a variable estava ausente ou no escopo errado.
     if: >-
-      vars.DEPLOY_ENABLED == 'true' &&
+      vars.DEPLOY_ENABLED != 'false' &&
       (github.event_name == 'workflow_dispatch' ||
        (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-latest
