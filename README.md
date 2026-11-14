@@ -240,7 +240,8 @@ cp .env.example .env
 ### Rede e TLS
 
 - O Traefik (stack `traefik-global/`) é o reverse proxy de borda e gera certificados **Let's Encrypt** automáticos (m2moda.com.br, m2moda.duckdns.org).
-- A aplicação publica apenas a porta `8080` (nginx) — em produção o acesso público é exclusivamente via Traefik (`:80` → `:443`).
+- O acesso público é exclusivamente via Traefik (`:80` → `:443`, TLS **Let's Encrypt**). O nginx da aplicação **não redireciona**: ele serve HTTP na porta interna `80` para o Traefik e preserva o `X-Forwarded-Proto` recebido.
+- Para diagnóstico local, o compose também publica `8080` (HTTP) e `8443` (HTTPS com o certificado local, não confiável). Essas portas servem a inspeção direta e **não** substituem a borda.
 - **Topologia de redes** (isolamento):
   - `web` (externa): Traefik ↔ nginx (app web e estáticos)
   - `db-network` (**internal**): apenas a aplicação acessa o MySQL — o banco não tem saída para a internet

@@ -20,7 +20,7 @@ Internet
                 │ rede externa "web"  →  http://m2-nginx:80
                 ▼
 ┌──────────────────────────────────────────────┐
-│ nginx (m2-nginx)  :8080→80  :8443→443        │  ⚠ 301 para https://$host:8443
+│ nginx (m2-nginx)  :8080→80  :8443→443        │  HTTP 80 interno p/ Traefik ✅
 │  nginx:1.26-alpine · cert localhost.pem ⚠     │  sem gzip, sem cache, sem HSTS
 └───────────────┬──────────────────────────────┘
                 │ proxy_pass → m2-django:8000

@@ -31,6 +31,10 @@ RUN rm /etc/nginx/conf.d/default.conf \
 
 COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/
 
+# Snippet incluído pelos server blocks. Fica fora de conf.d/ porque
+# conf.d/*.conf é incluído no contexto `http`, onde `location` é inválido.
+COPY --chown=nginx:nginx snippets/app-locations.conf /etc/nginx/snippets/app-locations.conf
+
 USER nginx
 
 EXPOSE 80 443

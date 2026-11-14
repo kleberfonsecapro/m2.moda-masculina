@@ -114,7 +114,7 @@ Baseline medido e metas: `docs/BASELINE.md`.
 | ID | Local | Problema | Sev | Esf. | Risco |
 | :-- | :-- | :-- | :-- | :-- | :-- |
 | D-059 | — | **Nenhum backup/DR**: sem dump, Borg, rclone, cron, alerta ou restore testado | 🔴 | G | 🟢 (roteiro do AGENTS.md §10) |
-| D-060 | `nginx/nginx.conf:8,14-15` | Nginx força `https://$host:8443` com cert `localhost.pem` → **TLS do Let's Encrypt contornado** | 🟠 | M | 🔴 (muda acesso público) |
+| D-060 | `nginx/nginx.conf` | Nginx forçava `https://$host:8443` com cert `localhost.pem` → **TLS do Let's Encrypt contornado** | 🟠 | M | ✅ resolvido 2026-11-14 (ADR-001) |
 | D-061 | `scripts/start.sh:24-27` | Copia `.env.example` → `.env` automaticamente, propagando `DEBUG=True` e senhas placeholder para produção | 🟠 | P | 🟡 |
 | D-062 | `backend/Dockerfile:7-13` | Single-stage: `gcc`, `libmariadb-dev`, `pkg-config` na imagem final | 🟡 | M | 🟢 |
 | D-063 | `backend/Dockerfile` (sem `USER`) | Container **inicia como root** e faz `chown -R` a cada boot (o processo final roda como `appuser` via `gosu`) | 🟡 | M | 🟡 |

@@ -165,3 +165,21 @@ não subiam.
 **Commit** — pendente de push.
 
 **Docs** — este LOG; README → Troubleshooting ("network web not found").
+
+## 2026-11-14 — Borda TLS no Traefik; nginx da app deixa de redirecionar (D-060)
+
+**O quê** — `nginx/nginx.conf` passa a servir a aplicação no `listen 80` (consumido pelo Traefik) e
+mantém o `443` só para diagnóstico. Locations comuns extraídas para
+`nginx/snippets/app-locations.conf`, copiado no `nginx/Dockerfile`. `X-Forwarded-Proto` preservado
+por `map`.
+
+**Por quê** — o `301 https://$host:8443` desviava o tráfego da borda para o certificado local,
+contornando o Let's Encrypt (D-060). Acesso público agora usa o TLS do Traefik.
+
+**Evidência** — `docker build` OK; `nginx -t` OK; teste em rede isolada: HTTP `:80` responde 404 do
+upstream (sem 301) e HT​TPS `:443` responde 404; `X-Forwarded-Proto: https` chega ao upstream como
+`https`, e sem header como `http`.
+
+**Commit** — pendente de push.
+
+**Docs** — este LOG, `docs/DECISOES.md` (ADR-001), `docs/DIVIDA.md` (D-060), `docs/01-ARQUITETURA.md`, README.
