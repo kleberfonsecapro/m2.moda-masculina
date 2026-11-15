@@ -16,7 +16,7 @@ Aguardando humano → Feito (+ Bloqueado).
 | **R2** Reavaliação de segurança | ⬜ Backlog | `docs/AUDITORIA-SEGURANCA.md` | — |
 | **R3** Organização de diretórios | ⬜ Backlog | `docs/ESTRUTURA-ATUAL.md`, `ESTRUTURA-ALVO.md` | — |
 | **R4** Endurecimento de infra | ⬜ Backlog | `docs/ESTRUTURA-ALVO.md` + item por item | — |
-| **R5** Evolução contínua | ⬜ Backlog | `docs/BACKLOG.md` | — |
+| **R5** Evolução contínua | 🟨 Em andamento | `docs/BACKLOG.md` (criado 2026-11-14) | — |
 
 ## R1 — andamento (2026-11-14)
 

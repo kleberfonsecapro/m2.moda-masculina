@@ -271,3 +271,15 @@ e `app.css?v=…`; `./scripts/test.sh` → 220 OK (1 teste novo em `mobile.tests
 **Commit** — branch `feat/botao-adicionar-carrinho`.
 
 **Docs** — este LOG.
+
+## 2026-11-14 — BACKLOG criado com itens de carrinho/WhatsApp
+
+**O quê** — Criado `docs/BACKLOG.md` com 4 novos itens (B-001 a B-004) e 8 itens já implementados (I-001 a I-008) como referência.
+
+**Por quê** — Usuário solicitou: (1) modal com mais opções após "Adicionar ao Carrinho"; (2) WhatsApp para vendedor ao finalizar pedido. Itens existentes documentados para evitar duplicação.
+
+**Evidência** — `docs/BACKLOG.md` criado; `docs/PROGRESSO.md` atualizado (R5 → Em andamento).
+
+**Commit** — pendente.
+
+**Docs** — este LOG, `BACKLOG.md`, `PROGRESSO.md`.
